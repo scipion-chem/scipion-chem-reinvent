@@ -40,6 +40,7 @@ from pwem.protocols import EMProtocol
 from pyworkflow.protocol import LEVEL_ADVANCED
 from pyworkflow.protocol.params import (PointerParam, IntParam, BooleanParam, EnumParam,
                                         PathParam, FloatParam, TextParam)
+
 from rdkit import Chem
 
 from reinvent import Plugin
@@ -361,7 +362,7 @@ class ReinventStagedLearning(EMProtocol):
 
 
         SumGroup = form.addGroup('Summary')
-        SumGroup.addParam('workFlowSteps', TextParam, expertLevel=LEVEL_ADVANCED,
+        SumGroup.addParam('workFlowSteps', TextParam, condition=False,
                                default='',
                                label='Workflow steps',
                                help='Internal workflow steps (used by wizard).')

@@ -26,18 +26,15 @@
 # **************************************************************************
 
 """
-@article{you2019,
-title = "Title of your paper ",
-journal = "...",
-volume = "...",
-number = ".",
-pages = "1 - 6",
-year = "2019",
-issn = "0000-1111",
-doi = "https://dx.doi.org/xxxxx/xxxxx",
-url = "https://www.url",
-author = "you and your team",
-keywords = "Single particle analysis Tomography",
+
+@Article{Loeffler2024,
+   Author={Hannes H. Loeffler, Jiazhen He, Alessandro Tibo, Jon Paul Janet, Alexey Voronov, Lewis H. Mervin & Ola Engkvist},
+   Title={Reinvent 4: Modern AI–driven generative molecule design},
+   Journal={Journal of Cheminformatics},
+   Year={2024},
+   Volume={16}
+   Number={20},
+   doi={https://doi.org/10.1186/s13321-024-00812-5}
 }
 
 """

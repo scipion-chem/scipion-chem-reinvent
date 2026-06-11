@@ -38,7 +38,7 @@ _references = ['you2019']
 class Plugin(pwem.Plugin):
     _homeVar = REINVENT_HOME
     _pathVars = [REINVENT_HOME]
-    _url = "https://github.com/scipion-em/scipion-chem-reinvent"
+    _url = "https://github.com/MolecularAI/REINVENT4"
     _supportedVersions = [V1]  # binary version
 
     @classmethod

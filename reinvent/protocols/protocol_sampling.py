@@ -210,16 +210,15 @@ class ReinventSampling(EMProtocol):
         with open(path_csv, 'r') as f_in, open(smi_out, 'w') as f_out:
             reader = csv.reader(f_in)
             headers = next(reader)
-            skip_idx = headers.index('SMILES_state') if 'SMILES_state' in headers else None
-
-            headers = [h for i, h in enumerate(headers) if i != skip_idx]
-            headers = ['ID'] + headers
+            skip_idx = headers.index('SMILES_state')
 
             for i, row in enumerate(reader):
                 if row and row[0].strip():
                     filtered_row = [v for j, v in enumerate(row) if j != skip_idx]
                     name = f'reinventsmiles{i + 1}'
-                    f_out.write('\t'.join([name] + filtered_row) + '\n')
+                    f_out.write(f'{filtered_row[0]}\t{name}\t{filtered_row[1]}\n')
+
+        headers = ['SMI', 'Name', 'NLL']
 
         outputLib = SmallMoleculesLibrary(libraryFilename=smi_out, headers=headers)
         outputLib.calculateLength()

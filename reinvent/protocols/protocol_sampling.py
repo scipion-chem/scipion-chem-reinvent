@@ -185,6 +185,7 @@ class ReinventSampling(EMProtocol):
         config_params = {
                 'run_type': 'sampling',
                 'device': 'cpu',
+                'tb_logdir': os.path.join(self._getExtraPath(), 'TB_logs'),
                 'json_out_config':self._getTmpPath('_sampling.json'),
 
                 'parameters': params

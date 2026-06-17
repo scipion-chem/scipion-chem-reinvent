@@ -20,7 +20,6 @@ reinvent/utils/__init__.py
 reinvent/utils/smilesUtils.py
 reinvent/viewers/__init__.py
 reinvent/wizards/__init__.py
-reinvent/wizards/wizard_hello_world.py
 reinvent/wizards/wizard_listing.py
 scipion_chem_reinvent.egg-info/PKG-INFO
 scipion_chem_reinvent.egg-info/SOURCES.txt

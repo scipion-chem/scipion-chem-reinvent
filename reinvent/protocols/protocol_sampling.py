@@ -216,10 +216,10 @@ class ReinventSampling(EMProtocol):
             for i, row in enumerate(reader):
                 if row and row[0].strip():
                     filtered_row = [v for j, v in enumerate(row) if j != skip_idx]
-                    name = f'reinventsmiles{i + 1}'
+                    name = f'MOL_{str(i + 1).zfill(3)}'
                     f_out.write(f'{filtered_row[0]}\t{name}\t{filtered_row[1]}\n')
 
-        headers = ['SMI', 'Name', 'NLL']
+        headers = ['SMI', 'molName', 'NLL']
 
         outputLib = SmallMoleculesLibrary(libraryFilename=smi_out, headers=headers)
         outputLib.calculateLength()

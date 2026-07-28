@@ -1,0 +1,14 @@
+{
+	"datasets": ["smallMolecules"],
+	"skippable": {
+		"gpu": [
+
+		],
+		"dependencies": [
+
+		],
+		"others": [
+
+		]
+	}
+}

@@ -1,0 +1,20 @@
+.project
+.cproject
+.pydevproject
+.classpath
+.idea
+.vscode
+
+#### Python
+build/
+dist/
+*.egg-info/
+*.egg
+*.py[cod]
+__pycache__/
+*.so
+*~
+*pyc
+
+# Test script
+allTests/

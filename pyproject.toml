@@ -20,11 +20,11 @@ classifiers = [
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Programming Language :: Python :: 3",
 ]
-keywords = ["scipion", "cryoem", "imageprocessing", "scipion-3.0"]
+keywords = ["scipion-chem", "virtualdrugscreening", "scipion-3.0"]
 
 [project.urls]
-Homepage = "https://github.com/scipion-em/scipion-em-template"
-Issues = "https://github.com/scipion-em/scipion-em-template/issues"
+Homepage = "https://github.com/scipion-chem/scipion-chem-reinvent"
+Issues = "https://github.com/scipion-chem/scipion-chem-reinvent/issues"
 
 [tool.setuptools.dynamic]
 version = {attr = "reinvent.__version__"}

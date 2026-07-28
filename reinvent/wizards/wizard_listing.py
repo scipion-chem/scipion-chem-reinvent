@@ -41,26 +41,26 @@ class AddStageWizard(VariableWizard):
 
         msjDic = {
             'termination': "simple",
-            'max_score': protocol.MaxScore.get(),
-            'min_steps': protocol.MinSteps.get(),
-            'max_steps': protocol.MaxSteps.get(),
-            'scoring': {'type': protocol.getEnumText('ScoreFunct'),
+            'max_score': protocol.maxScore.get(),
+            'min_steps': protocol.minSteps.get(),
+            'max_steps': protocol.maxSteps.get(),
+            'scoring': {'type': protocol.getEnumText('scoreFunct'),
                         'component': []}
         }
 
-        current_text = getattr(protocol, outputParam[0]).get() or ''
-        workSteps = [line for line in current_text.strip().split('\n') if line.strip()]
+        currentText = getattr(protocol, outputParam[0]).get() or ''
+        workSteps = [line for line in currentText.strip().split('\n') if line.strip()]
 
         if index > len(workSteps) or index <= 0:
-            new_text = current_text.strip() + '\n' + str(msjDic) + '\n'
+            newText = currentText.strip() + '\n' + str(msjDic) + '\n'
         else:
             workSteps.insert(index - 1, str(msjDic))
-            new_text = '\n'.join(workSteps) + '\n'
+            newText = '\n'.join(workSteps) + '\n'
 
-        form.setVar(outputParam[0], new_text.lstrip())
+        form.setVar(outputParam[0], newText.lstrip())
 
-        new_summary = protocol._updateSummary()
-        form.setVar('summarySteps', new_summary)
+        newSummary = protocol._updateSummary()
+        form.setVar('summarySteps', newSummary)
 
 
 class AddScoringComponentWizard(VariableWizard):
@@ -70,59 +70,59 @@ class AddScoringComponentWizard(VariableWizard):
         inputParam, outputParam = self.getInputOutput(form)
         protocol = form.protocol
 
-        raw_index = getattr(protocol, inputParam[0]).get()
-        target_idx = int(raw_index) - 1 if raw_index and str(raw_index).strip() != '' else 0
-        comp_name = protocol.getEnumText('CompType')
-        endpoint_data = {
-            'name': comp_name,
-            'weight': protocol.Weight.get()
+        rawIndex = getattr(protocol, inputParam[0]).get()
+        targetIdx = int(rawIndex) - 1 if rawIndex and str(rawIndex).strip() != '' else 0
+        compName = protocol.getEnumText('compType')
+        endpointData = {
+            'name': compName,
+            'weight': protocol.weight.get()
         }
 
-        if protocol.Trans.get() is True:
-            trans_type_index = protocol.TransFunc.get()
-            endpoint_data['transform.type'] = protocol.getEnumText('TransFunc')
+        if protocol.trans.get() is True:
+            transTypeIndex = protocol.transFunc.get()
+            endpointData['transform.type'] = protocol.getEnumText('transFunc')
 
-            if trans_type_index in [0, 1, 2, 4, 5]:
-                endpoint_data['transform.low'] = protocol.Low.get()
+            if transTypeIndex in [0, 1, 2, 4, 5]:
+                endpointData['transform.low'] = protocol.low.get()
 
-            if trans_type_index in [0, 1, 2, 3, 5]:
-                endpoint_data['transform.high'] = protocol.Up.get()
+            if transTypeIndex in [0, 1, 2, 3, 5]:
+                endpointData['transform.high'] = protocol.up.get()
 
-            if trans_type_index == 2:
-                endpoint_data['transform.coef_div'] = 100.00
-                endpoint_data['transform.coef_si'] = 10.00
-                endpoint_data['transform.coef_se'] = 10.00
+            if transTypeIndex == 2:
+                endpointData['transform.coef_div'] = 100.00
+                endpointData['transform.coef_si'] = 10.00
+                endpointData['transform.coef_se'] = 10.00
 
-            if trans_type_index == 6:
-                endpoint_data['transform.mapping'] = {
-                    comp_name: protocol.ScoreMatch.get(),
-                    "No %s" % comp_name: protocol.ScoreNoMatch.get()
+            if transTypeIndex == 6:
+                endpointData['transform.mapping'] = {
+                    compName: protocol.scoreMatch.get(),
+                    "No %s" % compName: protocol.scoreNoMatch.get()
                 }
 
-        comp_dict = {
-            comp_name: {
-                'endpoint': [endpoint_data]
+        compDict = {
+            compName: {
+                'endpoint': [endpointData]
             }
         }
-        current_text = getattr(protocol, outputParam[0]).get() or ''
-        workSteps = [line for line in current_text.strip().split('\n') if line.strip()]
+        currentText = getattr(protocol, outputParam[0]).get() or ''
+        workSteps = [line for line in currentText.strip().split('\n') if line.strip()]
 
-        if 0 <= target_idx < len(workSteps):
-            stage_data = ast.literal_eval(workSteps[target_idx])
+        if 0 <= targetIdx < len(workSteps):
+            stageData = ast.literal_eval(workSteps[targetIdx])
 
-            if 'component' not in stage_data['scoring']:
-                stage_data['scoring']['component'] = []
+            if 'component' not in stageData['scoring']:
+                stageData['scoring']['component'] = []
 
-            stage_data['scoring']['component'].append(comp_dict)
+            stageData['scoring']['component'].append(compDict)
 
-            workSteps[target_idx] = str(stage_data)
-            new_text = '\n'.join(workSteps) + '\n'
+            workSteps[targetIdx] = str(stageData)
+            newText = '\n'.join(workSteps) + '\n'
 
-            protocol.workFlowSteps.set(new_text)
-            form.setVar(outputParam[0], new_text.lstrip())
+            protocol.workFlowSteps.set(newText)
+            form.setVar(outputParam[0], newText.lstrip())
 
-            new_summary = protocol._updateSummary()
-            form.setVar('summarySteps', new_summary)
+            newSummary = protocol._updateSummary()
+            form.setVar('summarySteps', newSummary)
 
 
 class DeleteStageWizard(VariableWizard):
@@ -133,15 +133,15 @@ class DeleteStageWizard(VariableWizard):
         protocol = form.protocol
         try:
             index = int(getattr(protocol, inputParam[0]).get())
-            current_text = getattr(protocol, outputParam[0]).get() or ''
-            workSteps = [line for line in current_text.strip().split('\n') if line.strip()]
+            currentText = getattr(protocol, outputParam[0]).get() or ''
+            workSteps = [line for line in currentText.strip().split('\n') if line.strip()]
             if 1 <= index <= len(workSteps):
                 del workSteps[index - 1]
                 if workSteps:
-                    new_text = '\n'.join(workSteps) + '\n'
+                    newText = '\n'.join(workSteps) + '\n'
                 else:
-                    new_text = ''
-                form.setVar(outputParam[0], new_text)
+                    newText = ''
+                form.setVar(outputParam[0], newText)
                 newSum = protocol._updateSummary()
                 form.setVar('summarySteps', newSum)
         except:
@@ -153,29 +153,29 @@ class DeleteComponentWizard(VariableWizard):
     def show(self, form, *params):
         protocol = form.protocol
         try:
-            s_idx = int(protocol.delStage.get())
-            c_idx = int(protocol.delComponent.get())
+            sIdx = int(protocol.delStage.get())
+            cIdx = int(protocol.delComponent.get())
 
-            current_text = protocol.workFlowSteps.get() or ''
-            workSteps = [l for l in current_text.strip().split('\n') if l.strip()]
+            currentText = protocol.workFlowSteps.get() or ''
+            workSteps = [l for l in currentText.strip().split('\n') if l.strip()]
 
-            if 1 <= s_idx <= len(workSteps):
-                stage_data = ast.literal_eval(workSteps[s_idx - 1])
+            if 1 <= sIdx <= len(workSteps):
+                stageData = ast.literal_eval(workSteps[sIdx - 1])
 
-                components = stage_data.get('scoring', {}).get('component', [])
+                components = stageData.get('scoring', {}).get('component', [])
 
-                if 1 <= c_idx <= len(components):
-                    del components[c_idx - 1]
+                if 1 <= cIdx <= len(components):
+                    del components[cIdx - 1]
 
-                    workSteps[s_idx - 1] = str(stage_data)
-                    new_text = '\n'.join(workSteps) + '\n'
+                    workSteps[sIdx - 1] = str(stageData)
+                    newText = '\n'.join(workSteps) + '\n'
 
-                    protocol.workFlowSteps.set(new_text)
-                    form.setVar('workFlowSteps', new_text)
+                    protocol.workFlowSteps.set(newText)
+                    form.setVar('workFlowSteps', newText)
 
                     if hasattr(protocol, '_updateSummary'):
-                        new_sum = protocol._updateSummary()
-                        form.setVar('summarySteps', new_sum)
+                        newSum = protocol._updateSummary()
+                        form.setVar('summarySteps', newSum)
 
         except:
             print('Incorrect index')

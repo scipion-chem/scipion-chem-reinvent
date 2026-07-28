@@ -24,22 +24,29 @@
 # *
 # *************************************************************************
 from rdkit import Chem
+from rdkit.Chem.MolStandardize import rdMolStandardize
+
+# Neutralizes formal charges (protonated amines [NH+], carboxylates [O-], ...) that the
+# priors reject; instantiated once and reused.
+_UNCHARGER = rdMolStandardize.Uncharger()
+
+# Element alphabet supported by the REINVENT priors (ChEMBL-based). Molecules containing any
+# other element (e.g. I, P, B, Si) are rejected by REINVENT's tokenizer
+SUPPORTED_ELEMENTS = {'C', 'N', 'O', 'S', 'F', 'Cl', 'Br', 'H', '*'}
+
+REPLACEMENTS = [
+    ('[C]', 'C'),
+    ('[c]', 'c'),
+    ('[N]', 'N'),
+    ('[n]', 'n'),
+    ('[N@]', 'N'),
+    ('[O]', 'O'),
+    ('[o]', 'o')
+]
 
 
 def preprocess_smi_file(protocol, input, output):
     out_path = protocol._getPath(output)
-
-    forbidden_atoms = ['P']
-
-    replacements = [
-        ('[C]', 'C'),
-        ('[c]', 'c'),
-        ('[N]', 'N'),
-        ('[n]', 'n'),
-        ('[N@]', 'N'),
-        ('[O]', 'O'),
-        ('[o]', 'o')
-    ]
 
     total = 0
     saved = 0
@@ -47,26 +54,41 @@ def preprocess_smi_file(protocol, input, output):
     try:
         with open(input, 'r') as f_in, open(out_path, 'w') as f_out:
             for line in f_in:
-                smi_original = line.strip()
-                if not smi_original or any(atom in smi_original for atom in forbidden_atoms):
+                smiOriginal = line.strip()
+                if not smiOriginal:
                     continue
                 total += 1
 
-                mol = Chem.MolFromSmiles(smi_original)
+                mol = Chem.MolFromSmiles(smiOriginal)
+                if mol is None:
+                    continue
 
-                if mol is not None:
-                    smi_limpio = Chem.MolToSmiles(mol)
+                # Desalt: keep only the largest fragment. The REINVENT priors are trained on
+                # single-component molecules, so salts/mixtures (e.g. '.Cl') break the tokenizer.
+                hasWildcard = any(atom.GetAtomicNum() == 0 for atom in mol.GetAtoms())
+                if not hasWildcard:
+                    frags = Chem.GetMolFrags(mol, asMols=True, sanitizeFrags=False)
+                    if len(frags) > 1:
+                        mol = max(frags, key=lambda m: m.GetNumAtoms())
 
-                    for old, new in replacements:
-                        smi_limpio = smi_limpio.replace(old, new)
+                # Neutralize formal charges
+                mol = _UNCHARGER.uncharge(mol)
 
-                    f_out.write(smi_limpio + '\n')
-                    saved += 1
+                # Skip molecules with elements outside the prior's supported alphabet
+                if any(atom.GetSymbol() not in SUPPORTED_ELEMENTS for atom in mol.GetAtoms()):
+                    continue
 
-        print (f"SMILES preprocessed. {total - saved} SMILES were discarded. {saved} SMILES were saved.")
+                smiClean = Chem.MolToSmiles(mol)
+                for old, new in REPLACEMENTS:
+                    smiClean = smiClean.replace(old, new)
 
+                f_out.write(smiClean + '\n')
+                saved += 1
+
+        protocol.info("SMILES preprocessed. %d discarded (invalid or unsupported elements), %d saved."
+                      % (total - saved, saved))
         return out_path
 
     except Exception as e:
-        print("Smiles file can't be processed")
+        protocol.info("SMILES file can't be processed: %s" % e)
         return out_path

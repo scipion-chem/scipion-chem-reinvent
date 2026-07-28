@@ -1,2 +1,0 @@
-[pyworkflow.plugin]
-reinvent = reinvent

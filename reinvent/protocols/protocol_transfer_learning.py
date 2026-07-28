@@ -54,9 +54,8 @@ class ReinventTransferLearning(EMProtocol):
     def _defineParams(self, form):
         """ Define the input parameters that will be used."""
         form.addSection(label='Run Parameters')
-        PriorGroup = form.addGroup('Prior Model')
-        PriorGroup.addParam('MolGenerator', EnumParam, choices=['Reinvent'],# 'Mol2Mol',
-                                                          #'LibInvent', 'LinkInvent'],
+        priorGroup = form.addGroup('Prior Model')
+        priorGroup.addParam('molGenerator', EnumParam, choices=['Reinvent' 'Mol2Mol', 'LibInvent', 'LinkInvent'],
                       default=0,
                       label='Type of Molecule Generator',
                       help='Select generative strategy. Each type requires a specific prior and input data.\n'
@@ -67,30 +66,30 @@ class ReinventTransferLearning(EMProtocol):
                            'Transfer learning is less effective for Lib/LinkInvent as they are already constrained by fixed scaffolds/warheads.'
                            'Basic prior is usually sufficient for sampling.')
 
-        PriorGroup.addParam('ExtPrior', BooleanParam, default='False', expertLevel=LEVEL_ADVANCED,
+        priorGroup.addParam('extPrior', BooleanParam, default=False, expertLevel=LEVEL_ADVANCED,
                       label='Upload external prior file?',
                       help='Set to True to select a custom prior model.')
 
-        PriorGroup.addParam('PriorModel', PathParam,
-                      condition='ExtPrior==True',
+        priorGroup.addParam('priorModel', PathParam,
+                      condition='extPrior==True',
                       label='External prior model file',
                       help='Select prior model file. Each generator requires a specific prior.')
 
-        PriorGroup.addParam('SmiFileReinvent', PointerParam,
+        priorGroup.addParam('smiFileReinvent', PointerParam,
                             pointerClass='SetOfSmallMolecules',
-                            condition='MolGenerator==0',
+                            condition='molGenerator==0',
                             label='SMILES file',
                             help='Only reads first column. One compound per line.')
 
-        PriorGroup.addParam('SmiFileMol', PointerParam,
+        priorGroup.addParam('smiFileMol', PointerParam,
                       pointerClass='SetOfSmallMolecules',
-                      condition='MolGenerator==1',
+                      condition='molGenerator==1',
                       label='SMILES file',
                       help='Only reads first column.One compound per line.')
 
-        PriorGroup.addParam('SmiFileLib', PointerParam,
+        priorGroup.addParam('smiFileLib', PointerParam,
                       pointerClass='SetOfSmallMolecules',
-                      condition='MolGenerator==2',
+                      condition='molGenerator==2',
                       label='SMILES file',
                       help='Only reads 2 first columns. One scaffold per line.\n'
                            'Column 1: Scaffold with attachment point(s).\n'
@@ -98,9 +97,9 @@ class ReinventTransferLearning(EMProtocol):
                            'Example:\n'
                            '[*:0]Cc2ccc1cncc(C[*:1])c1c2    CCC.[H]')
 
-        PriorGroup.addParam('SmiFileLink', PointerParam,
+        priorGroup.addParam('smiFileLink', PointerParam,
                       pointerClass='SetOfSmallMolecules',
-                      condition='MolGenerator==3',
+                      condition='molGenerator==3',
                       label='SMILES file',
                       help='Only reads 2 frist columns. One warhead pair per line.\n'
                            'Column 1: Two warheads with attachment point(s) separated by "." (if multiple).\n'
@@ -108,79 +107,79 @@ class ReinventTransferLearning(EMProtocol):
                            'Example:\n'
                            'Oc1cncc(*)c1.*c1ccoc1   CC(C)CC')
 
-        PriorGroup.addParam('Validation', BooleanParam, default=False,
+        priorGroup.addParam('validation', BooleanParam, default=False,
                       label='Use validation set?',
                       help='If TRUE, a portion of the input SMILES will be used for validation')
 
-        PriorGroup.addParam('ValidationSize', FloatParam, default=0.2, expertLevel=LEVEL_ADVANCED,
-                      condition='Validation==True',
+        priorGroup.addParam('validationSize', FloatParam, default=0.2, expertLevel=LEVEL_ADVANCED,
+                      condition='validation==True',
                       label='Validation fraction',
                       help='Proportion of the data to use for validation (e.g., 0.2 for 20%)')
 
-        PriorGroup.addParam('PairsType', EnumParam, choices=['tanimoto'], expertLevel=LEVEL_ADVANCED,
-                      condition='MolGenerator==1',
+        priorGroup.addParam('pairsType', EnumParam, choices=['tanimoto'], expertLevel=LEVEL_ADVANCED,
+                      condition='molGenerator==1',
                       default=0,
                       label='Similarity type',
                       help='Choose metric to calculate similarity between molecular pairs.')
 
-        PriorGroup.addParam('PairsUpper', FloatParam, default=1.0, expertLevel=LEVEL_ADVANCED,
-                      condition='MolGenerator==1',
+        priorGroup.addParam('pairsUpper', FloatParam, default=1.0, expertLevel=LEVEL_ADVANCED,
+                      condition='molGenerator==1',
                       label='Upper similarity threshold',
                       help='Maximum similarity score allowed for a molecular pair to be considered valid.')
 
-        PriorGroup.addParam('PairsLower', FloatParam, default=0.7, expertLevel=LEVEL_ADVANCED,
-                      condition='MolGenerator==1',
+        priorGroup.addParam('pairsLower', FloatParam, default=0.7, expertLevel=LEVEL_ADVANCED,
+                      condition='molGenerator==1',
                       label='Lower similarity threshold',
                       help='Minimum similarity score required to ensure generated molecules remain related to reference')
 
-        PriorGroup.addParam('PairsMinCard', IntParam, default=1, expertLevel=LEVEL_ADVANCED,
-                      condition='MolGenerator==1',
+        priorGroup.addParam('pairsMinCard', IntParam, default=1, expertLevel=LEVEL_ADVANCED,
+                      condition='molGenerator==1',
                       label='Minimum cardinality',
                       help='Minimum number of similar neighbors required for a molecule to be included in train set.')
 
-        PriorGroup.addParam('PairsMaxCard', IntParam, default=199, expertLevel=LEVEL_ADVANCED,
-                      condition='MolGenerator==1',
+        priorGroup.addParam('pairsMaxCard', IntParam, default=199, expertLevel=LEVEL_ADVANCED,
+                      condition='molGenerator==1',
                       label='Maximum cardinality',
                       help='Maximum number of compounds that can be compared with a certain one.')
 
-        RunGroup = form.addGroup('Run Parameters')
-        RunGroup.addParam('NumEpochs', IntParam, default=10,
+        runGroup = form.addGroup('Run Parameters')
+        runGroup.addParam('numEpochs', IntParam, default=10,
                       label='Number of epochs',
                       help='Number of steps to train the prior model')
 
-        RunGroup.addParam('SaveChkpt', IntParam, default=5,
+        runGroup.addParam('saveChkpt', IntParam, default=5,
                       label='Save checkpoint',
                       help='Save checkpoint model file every N epochs')
 
-        RunGroup.addParam('BatchSize', IntParam, default=128, expertLevel=LEVEL_ADVANCED,
+        runGroup.addParam('batchSize', IntParam, default=128, expertLevel=LEVEL_ADVANCED,
                       label='Batch size',
                       help='Number of training molecules processed in each epoch')
 
-        RunGroup.addParam('NumRefs', IntParam, default=0, expertLevel=LEVEL_ADVANCED,
+        runGroup.addParam('numRefs', IntParam, default=0, expertLevel=LEVEL_ADVANCED,
                       label='Number of reference molecules',
                       help='Number of reference molecules randomly chosen to calculate similarity in each epoch \n'
                             'Value = 0 (Recommended): Uses the entire dataset')
 
-        RunGroup.addParam('SampleBatchSize', IntParam, default=100, expertLevel=LEVEL_ADVANCED,
+        runGroup.addParam('sampleBatchSize', IntParam, default=100, expertLevel=LEVEL_ADVANCED,
                       label='Sample batch size',
                       help='Number of generated molecules to compute sample loss')
 
     # -------------------------- OTHER functions ----------------------
     def _getPriorFile(self):
         priorModel = ['reinvent.prior','mol2mol_scaffold_generic.prior','libinvent.prior','linkinvent.prior']
-        priorFile = priorModel[self.MolGenerator.get()]
+        priorFile = priorModel[self.molGenerator.get()]
         return Plugin.getPriorPath(priorFile)
 
     def _getSmilesSet(self):
-        MolGenerator = self.MolGenerator.get()
-        if MolGenerator == 0:
-            return self.SmiFileReinvent.get()
-        elif MolGenerator == 1:
-            return self.SmiFileMol.get()
-        elif MolGenerator == 2:
-            return self.SmiFileLib.get()
-        elif MolGenerator == 3:
-            return self.SmiFileLink.get()
+        molGenerator = self.molGenerator.get()
+        if molGenerator == 0:
+            return self.smiFileReinvent.get()
+        elif molGenerator == 1:
+            return self.smiFileMol.get()
+        elif molGenerator == 2:
+            return self.smiFileLib.get()
+        elif molGenerator == 3:
+            return self.smiFileLink.get()
 
     def _extractSmilesToFile(self, molSet, outputFilename):
         outputPath = self._getPath(outputFilename)
@@ -207,34 +206,34 @@ class ReinventTransferLearning(EMProtocol):
 
         return outputPath
 
-        # --------------------------- STEPS functions ------------------------------
+    # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
-        self._insertFunctionStep('splitSmilesStep')
-        self._insertFunctionStep('createConfigFileStep')
-        self._insertFunctionStep('runReinventStep')
-        self._insertFunctionStep('createOutputStep')
+        self._insertFunctionStep(self.splitSmilesStep)
+        self._insertFunctionStep(self.createConfigFileStep)
+        self._insertFunctionStep(self.runReinventStep)
+        self._insertFunctionStep(self.createOutputStep)
 
     def splitSmilesStep(self):
         molSet = self._getSmilesSet()
-        raw_smi_path = self._extractSmilesToFile(molSet, 'smiles_raw.txt')
-        clean_input = preprocess_smi_file(self, raw_smi_path, 'smiles_cleaned.txt')
+        rawSmiPath = self._extractSmilesToFile(molSet, 'smiles_raw.txt')
+        cleanInput = preprocess_smi_file(self, rawSmiPath, 'smiles_cleaned.txt')
 
-        if self.Validation.get():
-            train_path = self._getPath('train_split.smi')
-            val_path = self._getPath('val_split.smi')
+        if self.validation.get():
+            trainPath = self._getPath('train_split.smi')
+            valPath = self._getPath('val_split.smi')
 
-            with open(clean_input, 'r') as f:
-                lines=f.readlines()
+            with open(cleanInput, 'r') as f:
+                lines = f.readlines()
 
             random.shuffle(lines)
-            split_idx=int(len(lines)*(1-self.ValidationSize.get()))
+            splitIdx = int(len(lines) * (1 - self.validationSize.get()))
 
-            with open(train_path, 'w') as f:
-                f.writelines(lines[:split_idx])
-            with open(val_path, 'w') as f:
-                f.writelines(lines[split_idx:])
+            with open(trainPath, 'w') as f:
+                f.writelines(lines[:splitIdx])
+            with open(valPath, 'w') as f:
+                f.writelines(lines[splitIdx:])
 
-            self.info("SMILES split: %d training, %d validation" % (split_idx, len(lines)-split_idx))
+            self.info("SMILES split: %d training, %d validation" % (splitIdx, len(lines) - splitIdx))
         else:
             self.info('Using all SMILES for training (no validation).')
 
@@ -242,39 +241,39 @@ class ReinventTransferLearning(EMProtocol):
 
     def createConfigFileStep(self):
 
-        filename = f"TL_{self.getEnumText('MolGenerator')}.model"
+        filename = f"TL_{self.getEnumText('molGenerator')}.model"
 
-        if self.ExtPrior.get():
-            prior_path = self.PriorModel.get()
+        if self.extPrior.get():
+            priorPath = self.priorModel.get()
         else:
-            prior_path = self._getPriorFile()
+            priorPath = self._getPriorFile()
 
         params = {
-            'num_epochs': self.NumEpochs.get(),
-            'save_every_n_epochs': self.SaveChkpt.get(),
-            'batch_size': self.BatchSize.get(),
-            'num_refs': self.NumRefs.get(),
-            'sample_batch_size': self.SampleBatchSize.get(),
-            'input_model_file': prior_path,
-            'output_model_file': self.getPath(filename)
+            'num_epochs': self.numEpochs.get(),
+            'save_every_n_epochs': self.saveChkpt.get(),
+            'batch_size': self.batchSize.get(),
+            'num_refs': self.numRefs.get(),
+            'sample_batch_size': self.sampleBatchSize.get(),
+            'input_model_file': priorPath,
+            'output_model_file': self._getPath(filename)
         }
-        if self.Validation.get():
+        if self.validation.get():
             params['validation_smiles_file'] = self._getPath('val_split.smi')
             params['smiles_file'] = self._getPath('train_split.smi')
         else:
             params['smiles_file'] = self._getPath('smiles_cleaned.txt')
 
-        if self.MolGenerator.get() == 1:
-            pairs_params = {
-                'type': self.getEnumText('PairsType'),
-                'upper_threshold': self.PairsUpper.get(),
-                'lower_threshold': self.PairsLower.get(),
-                'min_cardinality': self.PairsMinCard.get(),
-                'max_cardinality': self.PairsMaxCard.get()
+        if self.molGenerator.get() == 1:
+            pairsParams = {
+                'type': self.getEnumText('pairsType'),
+                'upper_threshold': self.pairsUpper.get(),
+                'lower_threshold': self.pairsLower.get(),
+                'min_cardinality': self.pairsMinCard.get(),
+                'max_cardinality': self.pairsMaxCard.get()
             }
-            params['pairs'] = pairs_params
+            params['pairs'] = pairsParams
 
-        config_params = {
+        configParams = {
             'run_type': 'transfer_learning',
             'device': 'cpu',
             'tb_logdir': os.path.join(self._getExtraPath(), 'TB_logs'),
@@ -284,40 +283,40 @@ class ReinventTransferLearning(EMProtocol):
 
         self.configPath = self._getPath('TL_config.toml')
         with open(self.configPath, 'w') as f:
-            toml.dump(config_params, f)
+            toml.dump(configParams, f)
         self.info("TOML config file created succesfully")
 
     def runReinventStep(self):
-        CondaInit = Plugin.getCondaActivationCmd()
-        EnvActivation = Plugin.getEnvActivation()
-        Executable = Plugin.getProgram()
+        condaInit = Plugin.getCondaActivationCmd()
+        envActivation = Plugin.getEnvActivation()
+        executable = Plugin.getProgram()
 
-        parts = [CondaInit, f'{EnvActivation} &&', Executable]
-        full_command = " ".join(parts)
-        self.runJob(full_command, self.configPath,
+        parts = [condaInit, f'{envActivation} &&', executable]
+        fullCommand = " ".join(parts)
+        self.runJob(fullCommand, self.configPath,
                     env=Plugin.getEnviron())
         self.info("REINVENT execution completed.")
 
 
     def createOutputStep(self):
 
-        filename = f"TL_{self.getEnumText('MolGenerator')}.model"
-        path_model = self._getPath(filename)
-        trained_model = ReinventModel(path=path_model)
-        trained_model.setObjLabel((f"Transfer learning model ({self.getEnumText('MolGenerator')})"))
-        self._defineOutputs(TL_TrainedModel=trained_model)
+        filename = f"TL_{self.getEnumText('molGenerator')}.model"
+        pathModel = self._getPath(filename)
+        trainedModel = ReinventModel(path=pathModel)
+        trainedModel.setObjLabel((f"Transfer learning model ({self.getEnumText('molGenerator')})"))
+        self._defineOutputs(TL_TrainedModel=trainedModel)
 
-        num_epochs = self.NumEpochs.get()
-        save_every = self.SaveChkpt.get()
-        chkpt_epochs = range (save_every, num_epochs + 1, save_every)
+        numEpochs = self.numEpochs.get()
+        saveEvery = self.saveChkpt.get()
+        chkptEpochs = range(saveEvery, numEpochs + 1, saveEvery)
 
         outputs = {}
-        for epoch in chkpt_epochs:
-            chkpt_path = self._getPath(f"{filename}.{epoch}.chkpt")
-            if os.path.exists(chkpt_path):
-                chkpt_model = ReinventModel(path=chkpt_path)
-                chkpt_model.setObjLabel(f"Transfer learning chkpt {epoch} ({self.getEnumText('MolGenerator')})")
-                outputs[f"TL_chkpt_{epoch}"] = chkpt_model
+        for epoch in chkptEpochs:
+            chkptPath = self._getPath(f"{filename}.{epoch}.chkpt")
+            if os.path.exists(chkptPath):
+                chkptModel = ReinventModel(path=chkptPath)
+                chkptModel.setObjLabel(f"Transfer learning chkpt {epoch} ({self.getEnumText('molGenerator')})")
+                outputs[f"TL_chkpt_{epoch}"] = chkptModel
 
         if outputs:
             self._defineOutputs(**outputs)
@@ -327,32 +326,32 @@ class ReinventTransferLearning(EMProtocol):
     def _validate(self):
         errors = []
 
-        if self.ExtPrior.get() is True and self.PriorModel.get() is None:
+        if self.extPrior.get() is True and self.priorModel.get() is None:
             errors.append("External prior file must be added")
 
         smilesfile = self._getSmilesSet()
         if smilesfile is None:
             errors.append("SMILES file must be added")
 
-        if self.Validation.get() is True and not (0.1 <= self.ValidationSize.get() <= 0.9):
+        if self.validation.get() is True and not (0.1 <= self.validationSize.get() <= 0.9):
             errors.append("Validation fraction must be in range [0.1,0.9]")
 
-        if not (0 <= self.PairsUpper.get() <= 1) or not (0 <= self.PairsLower.get() <= 1):
+        if not (0 <= self.pairsUpper.get() <= 1) or not (0 <= self.pairsLower.get() <= 1):
             errors.append("Similarity thresholds must be in range [0,1]")
 
-        if self.PairsLower.get() > self.PairsUpper.get():
+        if self.pairsLower.get() > self.pairsUpper.get():
             errors.append("Lower similarity threshold must be smaller than upper similarity threshold")
 
-        if self.PairsMinCard.get() > self.PairsMaxCard.get():
+        if self.pairsMinCard.get() > self.pairsMaxCard.get():
             errors.append("Minimum cardinality must be smaller than maximum cardinality")
 
-        if self.NumEpochs.get() < 1:
+        if self.numEpochs.get() < 1:
             errors.append("Number of epochs should be minimum 1.")
 
-        if self.SaveChkpt.get() < 1:
+        if self.saveChkpt.get() < 1:
             errors.append("Save chekpoint should be minimum 1.")
 
-        if self.SaveChkpt.get() > self.NumEpochs.get():
+        if self.saveChkpt.get() > self.numEpochs.get():
             errors.append("Save checkpoint must be smaller than number of epochs.")
 
         return errors
@@ -363,6 +362,6 @@ class ReinventTransferLearning(EMProtocol):
     def _summary(self):
         """ Summarize what the protocol has done"""
         summary = []
-        summary.append(f"Generator type: {self.getEnumText('MolGenerator')}")
+        summary.append(f"Generator type: {self.getEnumText('molGenerator')}")
 
         return summary

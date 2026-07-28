@@ -60,9 +60,8 @@ class ReinventStagedLearning(EMProtocol):
     def _defineParams(self, form):
         """ Define the input parameters that will be used."""
         form.addSection(label='Molecule Generator')
-        PriorGroup = form.addGroup('Prior Model')
-        PriorGroup.addParam('MolGenerator', EnumParam, choices=['Reinvent', 'LibInvent',
-                                                          'LinkInvent', 'Mol2Mol'],
+        priorGroup = form.addGroup('Prior Model')
+        priorGroup.addParam('molGenerator', EnumParam, choices=['Reinvent', 'LibInvent', 'LinkInvent', 'Mol2Mol'],
                       default=0,
                       label='Type of Molecule Generator',
                       help='Generative strategy to be used. Each generator requires a specific prior and input data.\n'
@@ -71,133 +70,133 @@ class ReinventStagedLearning(EMProtocol):
                            '- LinkInvent: Find a scaffold to link two fragments.\n'
                            '- Mol2Mol: Find molecules similar to provided SMILES.')
 
-        PriorGroup.addParam('ExtPrior', BooleanParam, default='False', expertLevel=LEVEL_ADVANCED,
+        priorGroup.addParam('extPrior', BooleanParam, default=False, expertLevel=LEVEL_ADVANCED,
                       label='Upload external prior file?',
                       help='Set to True to select a custom prior model.')
 
-        PriorGroup.addParam('PriorModel', PointerParam,
+        priorGroup.addParam('priorModel', PointerParam,
                       pointerClass='ReinventModel',
-                      condition='ExtPrior==False',
+                      condition='extPrior==False',
                       allowsNull=True,
                       label='Prior model file',
                       help='Select a trained model. A Transfer Learning protocol should be run first.\n'
                            ' If left empty, the default prior for the selected generator will be used.')
 
-        PriorGroup.addParam('ExtPriorModel', PathParam,
-                      condition='ExtPrior==True',
+        priorGroup.addParam('extPriorModel', PathParam,
+                      condition='extPrior==True',
                       label='Prior model file',
                       help='Path to prior model file. Each generator requires a specific prior.')
 
-        PriorGroup.addParam('SmiFileLib', PointerParam,
+        priorGroup.addParam('smiFileLib', PointerParam,
                       pointerClass='SetOfSmallMolecules',
-                      condition='MolGenerator==1',
+                      condition='molGenerator==1',
                       label='Scaffold SMILES file',
                       help='One scaffold per line. Each scaffold must be annotated by 2 \'*\' to locate the attachment points.\n'
                            'Up to 4 attachments points are allowed.\n'
                            'Example:\n [*:0]Cc2ccc1cncc(C[*:1])c1c2')
 
-        PriorGroup.addParam('SmiFileLink', PointerParam,
+        priorGroup.addParam('smiFileLink', PointerParam,
                       pointerClass='SetOfSmallMolecules',
-                      condition='MolGenerator==2',
+                      condition='molGenerator==2',
                       label='Warheads SMILES file',
                       help='One warhead pair per line. Each warhead must be annotated with \'*\' to locate the attachment points.'
                            'The two warheads must be separated by the pipe symbol.\n'
                            'Example:\n Oc1cncc(*)c1|*c1ccoc1')
 
-        PriorGroup.addParam('SmiFileMol', PointerParam,
+        priorGroup.addParam('smiFileMol', PointerParam,
                       pointerClass='SetOfSmallMolecules',
-                      condition='MolGenerator==3',
+                      condition='molGenerator==3',
                       label='Compound SMILES file',
                       help='One compound per line.')
 
-        PriorGroup.addParam('Inception', BooleanParam, default='False',
-                      condition='MolGenerator==0',
+        priorGroup.addParam('inception', BooleanParam, default=False,
+                      condition='molGenerator==0',
                       label='Activate Inception?',
                       help='Guide learning into a list of molecules provided.')
 
-        PriorGroup.addParam('InceptSmi', PointerParam,
+        priorGroup.addParam('inceptSmi', PointerParam,
                       pointerClass='SetOfSmallMolecules',
-                      condition='MolGenerator==0 and Inception==True',
+                      condition='molGenerator==0 and inception==True',
                       label='Inception SMILES file',
                       help='One molecule per line.')
 
-        PriorGroup.addParam('MemSize', IntParam, default=100, expertLevel=LEVEL_ADVANCED,
-                      condition='MolGenerator==0 and Inception==True',
+        priorGroup.addParam('memSize', IntParam, default=100, expertLevel=LEVEL_ADVANCED,
+                      condition='molGenerator==0 and inception==True',
                       label='SMILES held in memory',
                       help='Top N scored molecules. As the learning progresses, the initial molecules are removed '
                            'and replaced by those with higher scores')
 
-        PriorGroup.addParam('SampSize', IntParam, default=10, expertLevel=LEVEL_ADVANCED,
-                      condition='MolGenerator==0 and Inception==True',
+        priorGroup.addParam('sampSize', IntParam, default=10, expertLevel=LEVEL_ADVANCED,
+                      condition='molGenerator==0 and inception==True',
                       label='SMILES chosen per epoch',
                       help='Number of randomly sampled molecules to be used in computing inception loss.')
 
-        PriorGroup.addParam('SampleStrat', EnumParam, choices=['Beamsearch', 'Multinomial'],
-                      condition='MolGenerator==3', expertLevel=LEVEL_ADVANCED,
+        priorGroup.addParam('sampleStrat', EnumParam, choices=['Beamsearch', 'Multinomial'],
+                      condition='molGenerator==3', expertLevel=LEVEL_ADVANCED,
                       default=0,
                       label='Sampling Strategy',
                       help='Multinomial: Fast random generation based on token probability distribution.\n'
                            'Beamsearch: Deterministic approach that ensures unique compounds '
                            'by selecting the highest probability sequences.')
 
-        PriorGroup.addParam('Temperature', FloatParam, default=1.0, expertLevel=LEVEL_ADVANCED,
-                      condition='MolGenerator==3 and SampleStrat==1',
+        priorGroup.addParam('temperature', FloatParam, default=1.0, expertLevel=LEVEL_ADVANCED,
+                      condition='molGenerator==3 and sampleStrat==1',
                       label='Temperature in Multinomial sampling',
                       help='Controls randomness. Lower values for more predictable molecules and higher values for more diverse structures.')
 
-        PriorGroup.addParam('DisThres', IntParam, default=100,
-                      condition='MolGenerator==3', expertLevel=LEVEL_ADVANCED,
+        priorGroup.addParam('disThres', IntParam, default=100,
+                      condition='molGenerator==3', expertLevel=LEVEL_ADVANCED,
                       label='Distance Threshold',
                       help='Maximum limit on how much the generated molecule can structurally deviate from the source. '
                            'Higher values increase diversity.')
 
-        RunGroup = form.addGroup('Run Mode')
+        runGroup = form.addGroup('Run Mode')
 
-        RunGroup.addParam('UseCkpt', BooleanParam, default=False, expertLevel=LEVEL_ADVANCED,
+        runGroup.addParam('useCkpt', BooleanParam, default=False, expertLevel=LEVEL_ADVANCED,
                       label='Use checkpoint?',
                       help='If TRUE use diversity filter from agent file.')
 
-        RunGroup.addParam('PurgeMem', BooleanParam, default=False, expertLevel=LEVEL_ADVANCED,
+        runGroup.addParam('purgeMem', BooleanParam, default=False, expertLevel=LEVEL_ADVANCED,
                       label='Purge Memories?',
                       help='Controls if memory is cleared between training stages.'
                            'If FALSE, the model maintains memory across all stages '
                            'ensuring it does not repeat previously found structures.')
 
-        RunGroup.addParam('BatchSize', IntParam, default=128, expertLevel=LEVEL_ADVANCED,
+        runGroup.addParam('batchSize', IntParam, default=128, expertLevel=LEVEL_ADVANCED,
                       label='Batch size',
                       help='Number of molecules generated per run (epoch).')
 
-        RunGroup.addParam('RandomSmi', BooleanParam, default=True,
+        runGroup.addParam('randomSmi', BooleanParam, default=True,
                       label='Shuffle atoms randomly?',
                       help='If TRUE shuffle atoms in SMILES randomly.')
 
-        LearnGroup = form.addGroup('Learning Strategy', expertLevel=LEVEL_ADVANCED,)
-        LearnGroup.addParam('LearnType', EnumParam, choices=['dap'],
+        learnGroup = form.addGroup('Learning Strategy', expertLevel=LEVEL_ADVANCED,)
+        learnGroup.addParam('learnType', EnumParam, choices=['dap'],
                       default=0, expertLevel=LEVEL_ADVANCED,
                       label='Type of Learning Strategy',
                       help='DAP recommended.\n'
                            'Use of default values is also recommended. \n'
                            'If the learning is too slow, you can increase the learning rate.')
 
-        LearnGroup.addParam('Sigma', IntParam, default=128, expertLevel=LEVEL_ADVANCED,
+        learnGroup.addParam('sigma', IntParam, default=128, expertLevel=LEVEL_ADVANCED,
                       label='Sigma of the reward function',
                       help='Determines closeness between Agent and Prior. Higher values push the model to convert'
                            ' faster toward objective.')
 
-        LearnGroup.addParam('LearningRate', FloatParam, default=0.0001, expertLevel=LEVEL_ADVANCED,
+        learnGroup.addParam('learningRate', FloatParam, default=0.0001, expertLevel=LEVEL_ADVANCED,
                       label='Learning rate',
                       help="Controls how much the model's parameters change in response to estimated error.")
 
-        DivGroup = form.addGroup('Diversity Filter')
-        DivGroup.addParam('DivFilter', BooleanParam, default=True,
+        divGroup = form.addGroup('Diversity Filter')
+        divGroup.addParam('divFilter', BooleanParam, default=True,
                       label='Activate Diversity Filter?',
                       help='If TRUE activates memory of agent file that remembers good molecules '
                            'and penalizes the model if it repeats them. Forces to find different structures.')
-            
 
-        DivGroup.addParam('DivType', EnumParam, choices=['IdenticalMurckoScaffold', 'IdenticalTopologicalScaffold',
+
+        divGroup.addParam('divType', EnumParam, choices=['IdenticalMurckoScaffold', 'IdenticalTopologicalScaffold',
                                                      'ScaffoldSimilarity', 'PenalizeSameSmiles'],
-                      condition='DivFilter==True',
+                      condition='divFilter==True',
                       default=0,
                       label='Diversity Filter type',
                       help='How to group similar molecules.\n'
@@ -207,48 +206,48 @@ class ReinventStagedLearning(EMProtocol):
                             '- ScaffoldSimilarity: Penalizes molecules with similar scaffolds.\n'
                             '- PenalizeSameSmiles: Only penalizes exact molecular matches.')
 
-        DivGroup.addParam('BucketSize', IntParam, default=25, expertLevel=LEVEL_ADVANCED,
-                      condition='DivFilter==True',
+        divGroup.addParam('bucketSize', IntParam, default=25, expertLevel=LEVEL_ADVANCED,
+                      condition='divFilter==True',
                       label='Bucket size',
                       help='Number of compounds per bucket. Each bucket holds the same scaffold.')
 
-        DivGroup.addParam('MinScore', FloatParam, default=0.4, expertLevel=LEVEL_ADVANCED,
-                      condition='DivFilter==True',
+        divGroup.addParam('minScore', FloatParam, default=0.4, expertLevel=LEVEL_ADVANCED,
+                      condition='divFilter==True',
                       label='Minimum score',
                       help='Memorize those compounds that have a score value equal or higher to this minimum value.')
 
-        DivGroup.addParam('MinSim', FloatParam, default=0.4, expertLevel=LEVEL_ADVANCED,
-                      condition='DivFilter==True and DivType==2',
+        divGroup.addParam('minSim', FloatParam, default=0.4, expertLevel=LEVEL_ADVANCED,
+                      condition='divFilter==True and divType==2',
                       label='Minimum similarity',
                       help='Sets similarity threshold above which a new scaffold is considered redundant compared to stored ones.')
 
-        DivGroup.addParam('Penalty', FloatParam, default=0.5, expertLevel=LEVEL_ADVANCED,
-                      condition='DivFilter==True and DivType==3',
+        divGroup.addParam('penalty', FloatParam, default=0.5, expertLevel=LEVEL_ADVANCED,
+                      condition='divFilter==True and divType==3',
                       label='Penalty factor',
                       help='Penalty applied to score of repeated molecule.')
 
         form.addSection(label='Stage Parameters')
-        StageGroup = form.addGroup('Stage Parameters')
+        stageGroup = form.addGroup('Stage Parameters')
 
-        StageGroup.addParam('MaxScore', FloatParam, default=0.7,
+        stageGroup.addParam('maxScore', FloatParam, default=0.7,
                       label='Maximum score',
                       help='Success score. The stage ends when the generated molecules reach this quality.')
 
-        StageGroup.addParam('MinSteps', IntParam, default=10,
+        stageGroup.addParam('minSteps', IntParam, default=10,
                       label='Minimum number of steps',
                       help='Minimum number of epochs to run before checking termination criteria.')
 
-        StageGroup.addParam('MaxSteps', IntParam, default=100,
+        stageGroup.addParam('maxSteps', IntParam, default=100,
                       label='Maximum number of steps',
                       help='Maximum number of steps allowed. When reached, the run terminates')
 
-        StageGroup.addParam('ScoreFunct', EnumParam, choices=['geometric_mean', 'arithmetic_mean'],
+        stageGroup.addParam('scoreFunct', EnumParam, choices=['geometric_mean', 'arithmetic_mean'],
                       default=0,
                       label='Score function type',
                       help='Aggregation function used to combine all component scores into a single one.\n'
                            'Use geometric for strict multi-parameter balance or arithmetic for flexible average performance.')
 
-        StageGroup.addParam('insertStep', IntParam,
+        stageGroup.addParam('insertStep', IntParam,
                           default=1,
                           label='Insert step index',
                           help='Index where to insert the new stage (wizard).')
@@ -309,24 +308,24 @@ class ReinventStagedLearning(EMProtocol):
                              * FragmentNumRings / Aromatic / Aliphatic: Ring counts within the fragment sub-structure.
 
                             """
-        CompGroup = form.addGroup('Scoring component')
-        CompGroup.addParam('CompType', EnumParam, choices=component_choices,
+        compGroup = form.addGroup('Scoring component')
+        compGroup.addParam('compType', EnumParam, choices=component_choices,
                        default=0,
                        label='Select scoring component',
                        help=comp_help)
 
-        CompGroup.addParam('Weight', FloatParam, default=1.0,
+        compGroup.addParam('weight', FloatParam, default=1.0,
                        label='Weight',
                        help='Relative importance of this component in the final score.')
 
-        CompGroup.addParam('Trans', BooleanParam, default=True,
+        compGroup.addParam('trans', BooleanParam, default=True,
                        label='Apply transformer function?',
                        help='Enable this to normalize the raw chemical value into a score between 0 and 1.')
 
-        CompGroup.addParam('TransFunc', EnumParam, choices=['Sigmoid', 'Reverse_Sigmoid', 'Double_Sigmoid',
+        compGroup.addParam('transFunc', EnumParam, choices=['Sigmoid', 'Reverse_Sigmoid', 'Double_Sigmoid',
                                                                'Right_Step', 'Left_Step', 'Step', 'value_mapping'],
                         default=0,
-                        condition='Trans',
+                        condition='trans',
                         label='Transformer type',
                         help="""Select the mathematical function used to map raw values to scores:
                     Select SIGMOID transformers for smooth optimization and STEP functions for rigid threshold.
@@ -339,68 +338,68 @@ class ReinventStagedLearning(EMProtocol):
                     - Step: Only values between the thresholds receive a score of 1.0.
                     - Value Mapping: Assigns discrete scores to specific categories. (Only recommended for MMP).""")
 
-        CompGroup.addParam('Low', FloatParam, default=50.0,
-                           condition='Trans and TransFunc in [0,1,2,4,5]',
+        compGroup.addParam('low', FloatParam, default=50.0,
+                           condition='trans and transFunc in [0,1,2,4,5]',
                            label='Lower threshold',)
 
-        CompGroup.addParam('Up', FloatParam, default=100.0,
-                           condition='Trans and TransFunc in [0,1,2,3,5]',
+        compGroup.addParam('up', FloatParam, default=100.0,
+                           condition='trans and transFunc in [0,1,2,3,5]',
                            label='Upper threshold')
 
-        CompGroup.addParam('ScoreMatch', FloatParam, default=100.0,
-                           condition='Trans and TransFunc == 6',
+        compGroup.addParam('scoreMatch', FloatParam, default=100.0,
+                           condition='trans and transFunc == 6',
                            label='Score if matches')
 
-        CompGroup.addParam('ScoreNoMatch', FloatParam, default=50.0,
-                           condition='Trans and TransFunc == 6',
+        compGroup.addParam('scoreNoMatch', FloatParam, default=50.0,
+                           condition='trans and transFunc == 6',
                            label='Score if no match')
 
-        CompGroup.addParam('insertComponent', IntParam,
+        compGroup.addParam('insertComponent', IntParam,
                           default=1,
                           label='Insert component in step index',
                           help='Index of the stage where to insert the new component (wizard).')
 
 
-        SumGroup = form.addGroup('Summary')
-        SumGroup.addParam('workFlowSteps', TextParam, condition=False,
+        sumGroup = form.addGroup('Summary')
+        sumGroup.addParam('workFlowSteps', TextParam, condition=False,
                                default='',
                                label='Workflow steps',
                                help='Internal workflow steps (used by wizard).')
 
-        SumGroup.addParam('summarySteps', TextParam,
+        sumGroup.addParam('summarySteps', TextParam,
                                default='',
                                label='Summary steps',
                                help='Protocol summary steps.')
 
-        SumGroup.addParam('delStage', IntParam,
+        sumGroup.addParam('delStage', IntParam,
                           default='0', allowsNull=True,
                           label='Delete stage',
                           help='Index of the stage to delete')
 
-        SumGroup.addParam('delComponent', IntParam,
+        sumGroup.addParam('delComponent', IntParam,
                           default='0', allowsNull=True,
                           label='Delete component',
                           help='Index of the component to delete. The stage index is also needed.')
 
     # -------------------------- OTHER functions ----------------------
     def _getPriorFile(self):
-        if self.ExtPrior.get() is True:
-            return self.ExtPriorModel.get()
-        if self.PriorModel.get() is not None:
-            return self.PriorModel.get().getPath()
+        if self.extPrior.get() is True:
+            return self.extPriorModel.get()
+        if self.priorModel.get() is not None:
+            return self.priorModel.get().getPath()
         else:
             priorModel = ['reinvent.prior', 'libinvent.prior', 'linkinvent.prior', 'mol2mol_scaffold_generic.prior']
-            priorFile = priorModel[self.MolGenerator.get()]
+            priorFile = priorModel[self.molGenerator.get()]
             return Plugin.getPriorPath(priorFile)
 
     def _getSmilesSet(self):
-        MolGenerator = self.MolGenerator.get()
-        if MolGenerator == 1:
-            return self.SmiFileLib.get()
-        elif MolGenerator == 2:
-            return self.SmiFileLink.get()
-        elif MolGenerator == 3:
-            return self.SmiFileMol.get()
+        molGenerator = self.molGenerator.get()
+        if molGenerator == 1:
+            return self.smiFileLib.get()
+        elif molGenerator == 2:
+            return self.smiFileLink.get()
+        elif molGenerator == 3:
+            return self.smiFileMol.get()
         else:
             return None
 
@@ -425,118 +424,117 @@ class ReinventStagedLearning(EMProtocol):
 
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
-        self._insertFunctionStep('createConfigFileStep')
-        self._insertFunctionStep('runReinventStep')
-        self._insertFunctionStep('createOutputStep')
+        self._insertFunctionStep(self.createConfigFileStep)
+        self._insertFunctionStep(self.runReinventStep)
+        self._insertFunctionStep(self.createOutputStep)
 
     def createConfigFileStep(self):
 
-        prior_path=self._getPriorFile()
+        priorPath = self._getPriorFile()
 
         params = {
             'summary_csv_prefix': 'staged_learning',
-            'use_checkpoint': self.UseCkpt.get(),
-            'purge_memories': self.PurgeMem.get(),
-            'batch_size': self.BatchSize.get(),
-            'unique_sequences': 'true',
-            'randomize_smiles': self.RandomSmi.get(),
-            'prior_file': prior_path,
-            'agent_file': prior_path,
+            'use_checkpoint': self.useCkpt.get(),
+            'purge_memories': self.purgeMem.get(),
+            'batch_size': self.batchSize.get(),
+            'randomize_smiles': self.randomSmi.get(),
+            'prior_file': priorPath,
+            'agent_file': priorPath,
         }
 
         molSet = self._getSmilesSet()
         if molSet is not None:
-            raw_smi_path = self._extractSmilesToFile(molSet, 'smiles_raw.smi')
-            new_smiles_file = preprocess_smi_file(self, raw_smi_path, 'smiles_cleaned.smi')
-            params['smiles_file'] = new_smiles_file
+            rawSmiPath = self._extractSmilesToFile(molSet, 'smiles_raw.smi')
+            newSmilesFile = preprocess_smi_file(self, rawSmiPath, 'smiles_cleaned.smi')
+            params['smiles_file'] = newSmilesFile
 
 
-        SampleStrat = self.SampleStrat.get()
-        if self.MolGenerator.get() == 3:
-            if SampleStrat == 0:
+        sampleStrat = self.sampleStrat.get()
+        if self.molGenerator.get() == 3:
+            if sampleStrat == 0:
                 params['sample_strategy'] = 'beamsearch'
-            if SampleStrat == 1:
+            if sampleStrat == 1:
                 params['sample_strategy'] = 'multinomial'
-                params['temperature'] = self.Temperature.get()
-            params['distance_threshold'] = self.DisThres.get()
+                params['temperature'] = self.temperature.get()
+            params['distance_threshold'] = self.disThres.get()
 
-        config_params = {
+        configParams = {
             'run_type': 'staged_learning',
             'device': 'cpu',
             'json_out_config': self._getTmpPath('_staged_learning.json'),
             'parameters': params,
             'learning_strategy': {
-                'type': self.getEnumText('LearnType'),
-                'sigma': self.Sigma.get(),
-                'rate': self.LearningRate.get()
+                'type': self.getEnumText('learnType'),
+                'sigma': self.sigma.get(),
+                'rate': self.learningRate.get()
             }
         }
 
-        if self.Inception.get() is True:
-            inception_raw = self._extractSmilesToFile(self.InceptSmi.get(), 'inception_smiles_raw.smi')
-            inception_smi_path = preprocess_smi_file(self, inception_raw, 'inception_smiles.smi')
-            config_params['inception'] = {
-                'smiles_file': inception_smi_path,
-                'memory_size': self.MemSize.get(),
-                'sample_size': self.SampSize.get()
+        if self.inception.get() is True:
+            inceptionRaw = self._extractSmilesToFile(self.inceptSmi.get(), 'inception_smiles_raw.smi')
+            inceptionSmiPath = preprocess_smi_file(self, inceptionRaw, 'inception_smiles.smi')
+            configParams['inception'] = {
+                'smiles_file': inceptionSmiPath,
+                'memory_size': self.memSize.get(),
+                'sample_size': self.sampSize.get()
             }
 
-        if self.DivFilter.get() is True:
-            diversity_filter = {
-                'type': self.getEnumText('DivType'),
-                'bucket_size': self.BucketSize.get(),
-                'minscore': self.MinScore.get()
+        if self.divFilter.get() is True:
+            diversityFilter = {
+                'type': self.getEnumText('divType'),
+                'bucket_size': self.bucketSize.get(),
+                'minscore': self.minScore.get()
             }
-            DivType = self.DivType.get()
-            if DivType == 2:
-                diversity_filter['minsimilarity'] = self.MinSim.get()
-            if DivType == 3:
-                diversity_filter['penalty_multiplier'] = self.Penalty.get()
-            config_params['diversity_filter'] = diversity_filter
+            divType = self.divType.get()
+            if divType == 2:
+                diversityFilter['minsimilarity'] = self.minSim.get()
+            if divType == 3:
+                diversityFilter['penalty_multiplier'] = self.penalty.get()
+            configParams['diversity_filter'] = diversityFilter
 
-        steps_text = self.workFlowSteps.get().strip()
-        raw_stages = [ast.literal_eval(line) for line in steps_text.split('\n') if line.strip()]
-        stages_con_path = []
-        for i, stage_dict in enumerate(raw_stages):
-            stage_number = i + 1
+        stepsText = self.workFlowSteps.get().strip()
+        rawStages = [ast.literal_eval(line) for line in stepsText.split('\n') if line.strip()]
+        stagesConPath = []
+        for i, stageDict in enumerate(rawStages):
+            stageNumber = i + 1
 
-            stage_dict['chkpt_file'] = self._getPath('SL_S%d.chkpt' % stage_number)
-            stages_con_path.append(stage_dict)
+            stageDict['chkpt_file'] = self._getPath('SL_S%d.chkpt' % stageNumber)
+            stagesConPath.append(stageDict)
 
         with open(self._getPath('SL_config.toml'), 'w') as f:
-            toml.dump(config_params, f)
-            if stages_con_path:
+            toml.dump(configParams, f)
+            if stagesConPath:
                 f.write('\n')
-                toml.dump({'stage': stages_con_path}, f)
+                toml.dump({'stage': stagesConPath}, f)
 
     def runReinventStep(self):
-        CondaInit = Plugin.getCondaActivationCmd()
-        EnvActivation = Plugin.getEnvActivation()
-        Executable = Plugin.getProgram()
+        condaInit = Plugin.getCondaActivationCmd()
+        envActivation = Plugin.getEnvActivation()
+        executable = Plugin.getProgram()
 
-        parts = [CondaInit, f'{EnvActivation} &&', Executable]
-        full_command = " ".join(parts)
-        self.runJob(full_command, self._getPath('SL_config.toml'),
+        parts = [condaInit, f'{envActivation} &&', executable]
+        fullCommand = " ".join(parts)
+        self.runJob(fullCommand, self._getPath('SL_config.toml'),
                     env=Plugin.getEnviron())
 
     def createOutputStep(self):
-        steps_text = self.workFlowSteps.get().strip()
-        num_stages = len([l for l in steps_text.split('\n') if l.strip()])
-        outputs={}
+        stepsText = self.workFlowSteps.get().strip()
+        numStages = len([l for l in stepsText.split('\n') if l.strip()])
+        outputs = {}
 
-        for i in range(num_stages):
-            stage_num = i + 1
-            model_path = self._getPath('SL_S%d.chkpt' % stage_num)
-            csv_src = self.getProject().getPath('staged_learning_%d.csv' % stage_num)
-            csv_dest = self._getPath('SL_S%d.csv' % stage_num)
+        for i in range(numStages):
+            stageNum = i + 1
+            modelPath = self._getPath('SL_S%d.chkpt' % stageNum)
+            csvSrc = self.getProject().getPath('staged_learning_%d.csv' % stageNum)
+            csvDest = self._getPath('SL_S%d.csv' % stageNum)
 
-            if os.path.exists(model_path):
-                model_obj = ReinventModel(path=model_path)
-                model_obj.setObjLabel(f"Staged learning model S%d ({self.getEnumText('MolGenerator')})" % stage_num)
-                outputs['SL%d_TrainedModel' % stage_num] = model_obj
+            if os.path.exists(modelPath):
+                modelObj = ReinventModel(path=modelPath)
+                modelObj.setObjLabel(f"Staged learning model S%d ({self.getEnumText('molGenerator')})" % stageNum)
+                outputs['SL%d_TrainedModel' % stageNum] = modelObj
 
-            if os.path.exists(csv_src):
-                shutil.move(csv_src, csv_dest)
+            if os.path.exists(csvSrc):
+                shutil.move(csvSrc, csvDest)
 
         self._defineOutputs(**outputs)
 
@@ -545,7 +543,7 @@ class ReinventStagedLearning(EMProtocol):
     def _summary(self):
         """ Summarize what the protocol has done"""
         summary = []
-        summary.append(f"Generator type: {self.getEnumText('MolGenerator')}\n")
+        summary.append(f"Generator type: {self.getEnumText('molGenerator')}\n")
 
         summary.append(f"Configured steps: \n{self.summarySteps.get()}")
 
@@ -554,14 +552,14 @@ class ReinventStagedLearning(EMProtocol):
     def _validate(self):
         errors = []
 
-        if self.ExtPrior.get() is True and self.PriorModel.get() is None:
+        if self.extPrior.get() is True and self.priorModel.get() is None:
             errors.append("External prior file must be added.")
 
-        if self.Inception.get() is True and self.InceptSmi.get() is None:
+        if self.inception.get() is True and self.inceptSmi.get() is None:
             errors.append("Inception molecule set must be added.")
 
         smilesfile = self._getSmilesSet()
-        if smilesfile is None and self.getEnumText('MolGenerator') != 'Reinvent':
+        if smilesfile is None and self.getEnumText('molGenerator') != 'Reinvent':
             errors.append("SMILES molecule set must be added")
 
         steps = self.workFlowSteps.get()
@@ -570,29 +568,29 @@ class ReinventStagedLearning(EMProtocol):
             errors.append("There must be minimun one STAGE added to the workflow.")
 
         for index, line in enumerate(lines):
-            stage_num = index + 1
-            stage_dict = ast.literal_eval(line)
+            stageNum = index + 1
+            stageDict = ast.literal_eval(line)
 
-            scoring_sect = stage_dict.get('scoring', {})
-            components = scoring_sect.get('component', [])
+            scoringSect = stageDict.get('scoring', {})
+            components = scoringSect.get('component', [])
 
             if not components:
-                errors.append(f"STAGE {stage_num} has no components. Minimum one must be added.")
+                errors.append(f"STAGE {stageNum} has no components. Minimum one must be added.")
                 continue
 
-            total_weight = 0
+            totalWeight = 0
             for comp in components:
                 for name, content in comp.items():
                     endpoints = content.get('endpoint', [])
                     if endpoints:
-                        total_weight += endpoints[0].get('weight', 1.0)
-            if round(total_weight, 4) != 1.0:
-                errors.append(f"In STAGE {stage_num}, weights sum {total_weight}. Total sum has to be 1.0.")
+                        totalWeight += endpoints[0].get('weight', 1.0)
+            if round(totalWeight, 4) != 1.0:
+                errors.append(f"In STAGE {stageNum}, weights sum {totalWeight}. Total sum has to be 1.0.")
 
         return errors
 
 
-# --------------------------- LISTING functions --------    ---------------------------
+# --------------------------- LISTING functions -----------------------------
 
     def countSteps(self):
         stepsStr = self.summarySteps.get() if self.summarySteps.get() is not None else ''
@@ -600,28 +598,27 @@ class ReinventStagedLearning(EMProtocol):
         return len(steps) - 1
 
     def _updateSummary(self):
-        import ast
-        raw_text = self.workFlowSteps.get() or ''
-        lines = [l for l in raw_text.strip().split('\n') if l.strip()]
+        rawText = self.workFlowSteps.get() or ''
+        lines = [l for l in rawText.strip().split('\n') if l.strip()]
 
-        summary_lines = []
+        summaryLines = []
         for i, line in enumerate(lines):
 
             d = ast.literal_eval(line)
             steps = "%s-%s" % (d.get('min_steps', '?'), d.get('max_steps', '?'))
 
             comps = d.get('scoring', {}).get('component', [])
-            comp_info = []
+            compInfo = []
             for c in comps:
                 name = list(c.keys())[0]
                 weight = c[name]['endpoint'][0].get('weight', 1.0)
-                comp_info.append("%s (w:%0.1f)" % (name, weight))
+                compInfo.append("%s (w:%0.1f)" % (name, weight))
 
-            comp_str = " + ".join(comp_info) if comp_info else "EMPTY"
+            compStr = " + ".join(compInfo) if compInfo else "EMPTY"
 
-            summary_lines.append("STAGE %d [%s steps]: %s" %
-                                 (i + 1, steps, comp_str))
+            summaryLines.append("STAGE %d [%s steps]: %s" %
+                                 (i + 1, steps, compStr))
 
-        new_summary = "\n".join(summary_lines)
-        self.summarySteps.set(new_summary)
-        return new_summary
+        newSummary = "\n".join(summaryLines)
+        self.summarySteps.set(newSummary)
+        return newSummary

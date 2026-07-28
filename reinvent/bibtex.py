@@ -26,8 +26,7 @@
 # **************************************************************************
 
 """
-
-@Article{Loeffler2024,
+@article{Loeffler2024,
    Author={Hannes H. Loeffler, Jiazhen He, Alessandro Tibo, Jon Paul Janet, Alexey Voronov, Lewis H. Mervin & Ola Engkvist},
    Title={Reinvent 4: Modern AI–driven generative molecule design},
    Journal={Journal of Cheminformatics},

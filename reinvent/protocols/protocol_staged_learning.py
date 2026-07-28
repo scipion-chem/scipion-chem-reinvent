@@ -584,7 +584,7 @@ class ReinventStagedLearning(EMProtocol):
                     endpoints = content.get('endpoint', [])
                     if endpoints:
                         totalWeight += endpoints[0].get('weight', 1.0)
-            if round(totalWeight, 4) != 1.0:
+            if abs(totalWeight - 1.0) > 1e-4:
                 errors.append(f"In STAGE {stageNum}, weights sum {totalWeight}. Total sum has to be 1.0.")
 
         return errors

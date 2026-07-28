@@ -32,3 +32,5 @@ REINVENT_DIC = {'name': 'reinvent', 'version': V1, 'home': 'REINVENT_HOME'}
 
 REINVENT_BINARY = "REINVENT_BINARY"
 REINVENT_HOME = REINVENT_DIC['home']
+
+REINVENT_TAG = "v4.8"

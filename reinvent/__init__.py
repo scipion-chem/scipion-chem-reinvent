@@ -73,22 +73,25 @@ class Plugin(pwchem.Plugin):
         # Path to the priors download script shipped with the plugin
         priorsScript = cls.getPluginHome('priors.py')
 
-        # Directory where REINVENT4 gets cloned (git names it after the repo)
+        # REINVENT4 source directory (the release archive is extracted and renamed to it)
         repoPath = os.path.join(cls.getVar(REINVENT_DIC['home']), 'REINVENT4')
 
-        # Installing package: clone REINVENT4, create its conda env and install it, then download the priors
-        installer.getCloneCommand(cls.getReinventGithub(), targeName='REINVENT_CLONED')\
+        # Installing package
+        installer.addCommand(f'wget {cls.getReinventUrl()} -O reinvent4.zip && '
+                             f'unzip reinvent4.zip && '
+                             f'mv REINVENT4-*/ REINVENT4 && '
+                             f'rm reinvent4.zip', 'REINVENT_DOWNLOADED')\
             .getCondaEnvCommand(binaryName=REINVENT_DIC['name'], binaryVersion=REINVENT_DIC['version'],
                                 pythonVersion='3.11', binaryPath=repoPath,
                                 extraCommands=['python install.py cpu', 'pip install rdkit toml'],
                                 targetName='REINVENT_INSTALLED')\
             .addCommand(f'{cls.getEnvActivationCommand(REINVENT_DIC)} && python3 {priorsScript}',
                         'PRIORS_DOWNLOADED')\
-            .addPackage(env, dependencies=['git', 'conda'], default=default)
+            .addPackage(env, dependencies=['wget', 'unzip', 'conda'], default=default)
 
     @classmethod
-    def getReinventGithub(cls):
-        return f'{cls._url}.git'
+    def getReinventUrl(cls):
+        return f'{cls._url}/archive/refs/tags/{REINVENT_TAG}.zip'
 
     @classmethod
     def getProgram(cls, program=None):

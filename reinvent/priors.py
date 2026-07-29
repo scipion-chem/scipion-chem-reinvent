@@ -31,17 +31,17 @@ from urllib.request import urlopen
 
 
 def download():
-    url_prior = 'https://zenodo.org/api/records/15641297'
+    urlPrior = 'https://zenodo.org/api/records/15641297'
     os.makedirs('priors', exist_ok=True)
 
     print(f"Connecting to Zenodo...")
-    with urlopen(url_prior) as response:
+    with urlopen(urlPrior) as response:
         data = json.loads(response.read().decode())
 
-    for f_info in data['files']:
-        fname = os.path.join('priors', f_info['key'])
-        print(f"Downloading {f_info['key']}...")
-        with urlopen(f_info['links']['self']) as d, open(fname, 'wb') as f:
+    for fInfo in data['files']:
+        fname = os.path.join('priors', fInfo['key'])
+        print(f"Downloading {fInfo['key']}...")
+        with urlopen(fInfo['links']['self']) as d, open(fname, 'wb') as f:
             f.write(d.read())
 
 

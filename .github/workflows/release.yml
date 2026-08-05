@@ -21,7 +21,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install "setuptools" "wheel" "build==1.2.2.post1" "twine==6.1.0"
+        pip install "setuptools==83.0.0" "wheel==0.47.0" "build==1.5.0" "twine==7.0.0"
         pip install -r requirements.txt
 
     - name: Get tag name

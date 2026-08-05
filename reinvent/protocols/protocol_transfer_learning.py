@@ -42,7 +42,7 @@ from reinvent import Plugin
 from reinvent.objects import ReinventModel
 from reinvent.utils.smilesUtils import preprocess_smi_file
 
-
+MOL2MOL = 'molGenerator==1'
 
 class ReinventTransferLearning(EMProtocol):
     """
@@ -83,7 +83,7 @@ class ReinventTransferLearning(EMProtocol):
 
         priorGroup.addParam('smiFileMol', PointerParam,
                       pointerClass='SetOfSmallMolecules',
-                      condition='molGenerator==1',
+                      condition=MOL2MOL,
                       label='SMILES file',
                       help='Only reads first column.One compound per line.')
 
@@ -117,28 +117,28 @@ class ReinventTransferLearning(EMProtocol):
                       help='Proportion of the data to use for validation (e.g., 0.2 for 20%)')
 
         priorGroup.addParam('pairsType', EnumParam, choices=['tanimoto'], expertLevel=LEVEL_ADVANCED,
-                      condition='molGenerator==1',
+                      condition=MOL2MOL,
                       default=0,
                       label='Similarity type',
                       help='Choose metric to calculate similarity between molecular pairs.')
 
         priorGroup.addParam('pairsUpper', FloatParam, default=1.0, expertLevel=LEVEL_ADVANCED,
-                      condition='molGenerator==1',
+                      condition=MOL2MOL,
                       label='Upper similarity threshold',
                       help='Maximum similarity score allowed for a molecular pair to be considered valid.')
 
         priorGroup.addParam('pairsLower', FloatParam, default=0.7, expertLevel=LEVEL_ADVANCED,
-                      condition='molGenerator==1',
+                      condition=MOL2MOL,
                       label='Lower similarity threshold',
                       help='Minimum similarity score required to ensure generated molecules remain related to reference')
 
         priorGroup.addParam('pairsMinCard', IntParam, default=1, expertLevel=LEVEL_ADVANCED,
-                      condition='molGenerator==1',
+                      condition=MOL2MOL,
                       label='Minimum cardinality',
                       help='Minimum number of similar neighbors required for a molecule to be included in train set.')
 
         priorGroup.addParam('pairsMaxCard', IntParam, default=199, expertLevel=LEVEL_ADVANCED,
-                      condition='molGenerator==1',
+                      condition=MOL2MOL,
                       label='Maximum cardinality',
                       help='Maximum number of compounds that can be compared with a certain one.')
 

@@ -47,7 +47,9 @@ from reinvent import Plugin
 from reinvent.objects import ReinventModel
 from reinvent.utils.smilesUtils import preprocess_smi_file
 
-
+REINV_INCEPT = 'molGenerator==0 and inception==True'
+LINK_INVENT = 'molGenerator==3'
+DIV_FILTER = 'divFilter==True'
 
 class ReinventStagedLearning(EMProtocol):
     """
@@ -105,7 +107,7 @@ class ReinventStagedLearning(EMProtocol):
 
         priorGroup.addParam('smiFileMol', PointerParam,
                       pointerClass='SetOfSmallMolecules',
-                      condition='molGenerator==3',
+                      condition=LINK_INVENT,
                       label='Compound SMILES file',
                       help='One compound per line.')
 
@@ -116,23 +118,23 @@ class ReinventStagedLearning(EMProtocol):
 
         priorGroup.addParam('inceptSmi', PointerParam,
                       pointerClass='SetOfSmallMolecules',
-                      condition='molGenerator==0 and inception==True',
+                      condition=REINV_INCEPT,
                       label='Inception SMILES file',
                       help='One molecule per line.')
 
         priorGroup.addParam('memSize', IntParam, default=100, expertLevel=LEVEL_ADVANCED,
-                      condition='molGenerator==0 and inception==True',
+                      condition=REINV_INCEPT,
                       label='SMILES held in memory',
                       help='Top N scored molecules. As the learning progresses, the initial molecules are removed '
                            'and replaced by those with higher scores')
 
         priorGroup.addParam('sampSize', IntParam, default=10, expertLevel=LEVEL_ADVANCED,
-                      condition='molGenerator==0 and inception==True',
+                      condition=REINV_INCEPT,
                       label='SMILES chosen per epoch',
                       help='Number of randomly sampled molecules to be used in computing inception loss.')
 
         priorGroup.addParam('sampleStrat', EnumParam, choices=['Beamsearch', 'Multinomial'],
-                      condition='molGenerator==3', expertLevel=LEVEL_ADVANCED,
+                      condition=LINK_INVENT, expertLevel=LEVEL_ADVANCED,
                       default=0,
                       label='Sampling Strategy',
                       help='Multinomial: Fast random generation based on token probability distribution.\n'
@@ -145,7 +147,7 @@ class ReinventStagedLearning(EMProtocol):
                       help='Controls randomness. Lower values for more predictable molecules and higher values for more diverse structures.')
 
         priorGroup.addParam('disThres', IntParam, default=100,
-                      condition='molGenerator==3', expertLevel=LEVEL_ADVANCED,
+                      condition=LINK_INVENT, expertLevel=LEVEL_ADVANCED,
                       label='Distance Threshold',
                       help='Maximum limit on how much the generated molecule can structurally deviate from the source. '
                            'Higher values increase diversity.')
@@ -196,7 +198,7 @@ class ReinventStagedLearning(EMProtocol):
 
         divGroup.addParam('divType', EnumParam, choices=['IdenticalMurckoScaffold', 'IdenticalTopologicalScaffold',
                                                      'ScaffoldSimilarity', 'PenalizeSameSmiles'],
-                      condition='divFilter==True',
+                      condition=DIV_FILTER,
                       default=0,
                       label='Diversity Filter type',
                       help='How to group similar molecules.\n'
@@ -207,12 +209,12 @@ class ReinventStagedLearning(EMProtocol):
                             '- PenalizeSameSmiles: Only penalizes exact molecular matches.')
 
         divGroup.addParam('bucketSize', IntParam, default=25, expertLevel=LEVEL_ADVANCED,
-                      condition='divFilter==True',
+                      condition=DIV_FILTER,
                       label='Bucket size',
                       help='Number of compounds per bucket. Each bucket holds the same scaffold.')
 
         divGroup.addParam('minScore', FloatParam, default=0.4, expertLevel=LEVEL_ADVANCED,
-                      condition='divFilter==True',
+                      condition=DIV_FILTER,
                       label='Minimum score',
                       help='Memorize those compounds that have a score value equal or higher to this minimum value.')
 

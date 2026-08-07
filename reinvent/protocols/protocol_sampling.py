@@ -70,7 +70,7 @@ class ReinventSampling(EMProtocol):
                       help='If TRUE shuffle atoms in SMILES randomly.')
 
         genGroup = form.addGroup('Molecule Generator')
-        genGroup.addParam('molGenerator', EnumParam, choices=['Reinvent', 'LibInvent', 'LinkInvent', 'Mol2Mol'],
+        genGroup.addParam('molGenerator', EnumParam, choices=['Reinvent'], #, 'LibInvent', 'LinkInvent', 'Mol2Mol'],
                       default=0,
                       label='Type of Molecule Generator',
                       help='Generative strategy to be used. Each generator requires a specific prior and input data.\n'

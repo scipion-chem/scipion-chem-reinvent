@@ -63,7 +63,7 @@ class ReinventStagedLearning(EMProtocol):
         """ Define the input parameters that will be used."""
         form.addSection(label='Molecule Generator')
         priorGroup = form.addGroup('Prior Model')
-        priorGroup.addParam('molGenerator', EnumParam, choices=['Reinvent', 'LibInvent', 'LinkInvent', 'Mol2Mol'],
+        priorGroup.addParam('molGenerator', EnumParam, choices=['Reinvent'], #, 'LibInvent', 'LinkInvent', 'Mol2Mol'],
                       default=0,
                       label='Type of Molecule Generator',
                       help='Generative strategy to be used. Each generator requires a specific prior and input data.\n'

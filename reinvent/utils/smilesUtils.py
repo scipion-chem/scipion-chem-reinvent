@@ -26,6 +26,8 @@
 from rdkit import Chem
 from rdkit.Chem.MolStandardize import rdMolStandardize
 
+from pwchem.objects import SmallMoleculesLibrary
+
 # Neutralizes formal charges (protonated amines [NH+], carboxylates [O-], ...) that the
 # priors reject; instantiated once and reused.
 _UNCHARGER = rdMolStandardize.Uncharger()
@@ -40,12 +42,88 @@ REPLACEMENTS = [
     ('[N]', 'N'),
     ('[n]', 'n'),
     ('[N@]', 'N'),
+    ('[N@@]', 'N'),
     ('[O]', 'O'),
     ('[o]', 'o')
 ]
 
 
-def preprocess_smi_file(protocol, input, output):
+def _clean_smi(smiOriginal):
+    """Parse, desalt, neutralize and filter a single SMILES. Returns None if it can't be used."""
+    mol = Chem.MolFromSmiles(smiOriginal)
+    if mol is None:
+        return None
+
+    # Desalt: keep only the largest fragment. The REINVENT priors are trained on
+    # single-component molecules, so salts/mixtures (e.g. '.Cl') break the tokenizer.
+    hasWildcard = any(atom.GetAtomicNum() == 0 for atom in mol.GetAtoms())
+    if not hasWildcard:
+        frags = Chem.GetMolFrags(mol, asMols=True, sanitizeFrags=False)
+        if len(frags) > 1:
+            mol = max(frags, key=lambda m: m.GetNumAtoms())
+
+    # Neutralize formal charges
+    mol = _UNCHARGER.uncharge(mol)
+
+    # Skip molecules with elements outside the prior's supported alphabet
+    if any(atom.GetSymbol() not in SUPPORTED_ELEMENTS for atom in mol.GetAtoms()):
+        return None
+
+    smiClean = Chem.MolToSmiles(mol)
+    for old, new in REPLACEMENTS:
+        smiClean = smiClean.replace(old, new)
+    return smiClean
+
+
+def extract_smiles_to_file(protocol, molInput, outputFilename):
+    """Write one SMILES per line to outputFilename, reading from either a SmallMoleculesLibrary
+    (its own flat SMI column) or a SetOfSmallMolecules (one .smi/.sdf/.mol2 file per molecule)."""
+    outputPath = protocol._getPath(outputFilename)
+
+    if isinstance(molInput, SmallMoleculesLibrary):
+        smiIdx = molInput.getHeaders().index('SMI')
+        with open(molInput.getFileName(), 'r') as fin, open(outputPath, 'w') as fout:
+            for line in fin:
+                row = line.rstrip('\n').split('\t')
+                if len(row) > smiIdx and row[smiIdx].strip():
+                    fout.write(row[smiIdx].strip() + '\n')
+        return outputPath
+
+    with open(outputPath, 'w') as fout:
+        for mol in molInput:
+            molFile = mol.getFileName()
+
+            if molFile.endswith('.smi'):
+                with open(molFile, 'r') as fin:
+                    smiles = fin.readline().split()[0]
+                    fout.write(smiles + '\n')
+
+            elif molFile.endswith('.sdf'):
+                for rdmol in Chem.SDMolSupplier(molFile):
+                    if rdmol:
+                        fout.write(Chem.MolToSmiles(rdmol) + '\n')
+
+            elif molFile.endswith('.mol2'):
+                rdmol = Chem.MolFromMol2File(molFile)
+                if rdmol:
+                    fout.write(Chem.MolToSmiles(rdmol) + '\n')
+
+    return outputPath
+
+
+def get_input_length(molInput):
+    """Number of molecules in either a SmallMoleculesLibrary or a SetOfSmallMolecules."""
+    if isinstance(molInput, SmallMoleculesLibrary):
+        return molInput.getLength() or molInput.calculateLength()
+    return len(molInput)
+
+
+def preprocess_smi_file(protocol, input, output, separator=None):
+    """Clean a SMILES file, one molecule per line.
+
+    If separator is given (e.g. LinkInvent's '|'-joined warhead pairs), each line is split on it,
+    every part is cleaned independently, and the line is only kept if all parts survive.
+    """
     out_path = protocol._getPath(output)
 
     total = 0
@@ -59,30 +137,17 @@ def preprocess_smi_file(protocol, input, output):
                     continue
                 total += 1
 
-                mol = Chem.MolFromSmiles(smiOriginal)
-                if mol is None:
-                    continue
+                if separator:
+                    cleanedParts = [_clean_smi(part) for part in smiOriginal.split(separator)]
+                    if any(part is None for part in cleanedParts):
+                        continue
+                    f_out.write(separator.join(cleanedParts) + '\n')
+                else:
+                    smiClean = _clean_smi(smiOriginal)
+                    if smiClean is None:
+                        continue
+                    f_out.write(smiClean + '\n')
 
-                # Desalt: keep only the largest fragment. The REINVENT priors are trained on
-                # single-component molecules, so salts/mixtures (e.g. '.Cl') break the tokenizer.
-                hasWildcard = any(atom.GetAtomicNum() == 0 for atom in mol.GetAtoms())
-                if not hasWildcard:
-                    frags = Chem.GetMolFrags(mol, asMols=True, sanitizeFrags=False)
-                    if len(frags) > 1:
-                        mol = max(frags, key=lambda m: m.GetNumAtoms())
-
-                # Neutralize formal charges
-                mol = _UNCHARGER.uncharge(mol)
-
-                # Skip molecules with elements outside the prior's supported alphabet
-                if any(atom.GetSymbol() not in SUPPORTED_ELEMENTS for atom in mol.GetAtoms()):
-                    continue
-
-                smiClean = Chem.MolToSmiles(mol)
-                for old, new in REPLACEMENTS:
-                    smiClean = smiClean.replace(old, new)
-
-                f_out.write(smiClean + '\n')
                 saved += 1
 
         protocol.info("SMILES preprocessed. %d discarded (invalid or unsupported elements), %d saved."

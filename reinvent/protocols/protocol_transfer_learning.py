@@ -36,11 +36,10 @@ import random
 from pwem.protocols import EMProtocol
 from pyworkflow.protocol import LEVEL_ADVANCED
 from pyworkflow.protocol.params import (IntParam, EnumParam, PathParam, FloatParam, BooleanParam, PointerParam)
-from rdkit import Chem
 
 from reinvent import Plugin
 from reinvent.objects import ReinventModel
-from reinvent.utils.smilesUtils import preprocess_smi_file
+from reinvent.utils.smilesUtils import preprocess_smi_file, extract_smiles_to_file
 
 MOL2MOL = 'molGenerator==1'
 
@@ -76,19 +75,19 @@ class ReinventTransferLearning(EMProtocol):
                       help='Select prior model file. Each generator requires a specific prior.')
 
         priorGroup.addParam('smiFileReinvent', PointerParam,
-                            pointerClass='SetOfSmallMolecules',
+                            pointerClass='SetOfSmallMolecules,SmallMoleculesLibrary',
                             condition='molGenerator==0',
                             label='SMILES file',
                             help='Only reads first column. One compound per line.')
 
         priorGroup.addParam('smiFileMol', PointerParam,
-                      pointerClass='SetOfSmallMolecules',
+                      pointerClass='SetOfSmallMolecules,SmallMoleculesLibrary',
                       condition=MOL2MOL,
                       label='SMILES file',
                       help='Only reads first column.One compound per line.')
 
         priorGroup.addParam('smiFileLib', PointerParam,
-                      pointerClass='SetOfSmallMolecules',
+                      pointerClass='SetOfSmallMolecules,SmallMoleculesLibrary',
                       condition='molGenerator==2',
                       label='SMILES file',
                       help='Only reads 2 first columns. One scaffold per line.\n'
@@ -98,7 +97,7 @@ class ReinventTransferLearning(EMProtocol):
                            '[*:0]Cc2ccc1cncc(C[*:1])c1c2    CCC.[H]')
 
         priorGroup.addParam('smiFileLink', PointerParam,
-                      pointerClass='SetOfSmallMolecules',
+                      pointerClass='SetOfSmallMolecules,SmallMoleculesLibrary',
                       condition='molGenerator==3',
                       label='SMILES file',
                       help='Only reads 2 frist columns. One warhead pair per line.\n'
@@ -181,31 +180,6 @@ class ReinventTransferLearning(EMProtocol):
         elif molGenerator == 3:
             return self.smiFileLink.get()
 
-    def _extractSmilesToFile(self, molSet, outputFilename):
-        outputPath = self._getPath(outputFilename)
-
-        with open(outputPath, 'w') as fout:
-            for mol in molSet:
-                molFile = mol.getFileName()
-
-                if molFile.endswith('.smi'):
-                    with open(molFile, 'r') as fin:
-                        smiles = fin.readline().split()[0]
-                        fout.write(smiles + '\n')
-
-                elif molFile.endswith('.sdf'):
-                    supplier = Chem.SDMolSupplier(molFile)
-                    for rdmol in supplier:
-                        if rdmol:
-                            fout.write(Chem.MolToSmiles(rdmol) + '\n')
-
-                elif molFile.endswith('.mol2'):
-                    rdmol = Chem.MolFromMol2File(molFile)
-                    if rdmol:
-                        fout.write(Chem.MolToSmiles(rdmol) + '\n')
-
-        return outputPath
-
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
         self._insertFunctionStep(self.splitSmilesStep)
@@ -215,7 +189,7 @@ class ReinventTransferLearning(EMProtocol):
 
     def splitSmilesStep(self):
         molSet = self._getSmilesSet()
-        rawSmiPath = self._extractSmilesToFile(molSet, 'smiles_raw.txt')
+        rawSmiPath = extract_smiles_to_file(self, molSet, 'smiles_raw.txt')
         cleanInput = preprocess_smi_file(self, rawSmiPath, 'smiles_cleaned.txt')
 
         if self.validation.get():

@@ -41,11 +41,9 @@ from pyworkflow.protocol import LEVEL_ADVANCED
 from pyworkflow.protocol.params import (PointerParam, IntParam, BooleanParam, EnumParam,
                                         PathParam, FloatParam, TextParam)
 
-from rdkit import Chem
-
 from reinvent import Plugin
 from reinvent.objects import ReinventModel
-from reinvent.utils.smilesUtils import preprocess_smi_file
+from reinvent.utils.smilesUtils import preprocess_smi_file, extract_smiles_to_file
 
 REINV_INCEPT = 'molGenerator==0 and inception==True'
 LINK_INVENT = 'molGenerator==3'
@@ -90,7 +88,7 @@ class ReinventStagedLearning(EMProtocol):
                       help='Path to prior model file. Each generator requires a specific prior.')
 
         priorGroup.addParam('smiFileLib', PointerParam,
-                      pointerClass='SetOfSmallMolecules',
+                      pointerClass='SetOfSmallMolecules,SmallMoleculesLibrary',
                       condition='molGenerator==1',
                       label='Scaffold SMILES file',
                       help='One scaffold per line. Each scaffold must be annotated by 2 \'*\' to locate the attachment points.\n'
@@ -98,7 +96,7 @@ class ReinventStagedLearning(EMProtocol):
                            'Example:\n [*:0]Cc2ccc1cncc(C[*:1])c1c2')
 
         priorGroup.addParam('smiFileLink', PointerParam,
-                      pointerClass='SetOfSmallMolecules',
+                      pointerClass='SetOfSmallMolecules,SmallMoleculesLibrary',
                       condition='molGenerator==2',
                       label='Warheads SMILES file',
                       help='One warhead pair per line. Each warhead must be annotated with \'*\' to locate the attachment points.'
@@ -106,7 +104,7 @@ class ReinventStagedLearning(EMProtocol):
                            'Example:\n Oc1cncc(*)c1|*c1ccoc1')
 
         priorGroup.addParam('smiFileMol', PointerParam,
-                      pointerClass='SetOfSmallMolecules',
+                      pointerClass='SetOfSmallMolecules,SmallMoleculesLibrary',
                       condition=LINK_INVENT,
                       label='Compound SMILES file',
                       help='One compound per line.')
@@ -117,7 +115,7 @@ class ReinventStagedLearning(EMProtocol):
                       help='Guide learning into a list of molecules provided.')
 
         priorGroup.addParam('inceptSmi', PointerParam,
-                      pointerClass='SetOfSmallMolecules',
+                      pointerClass='SetOfSmallMolecules,SmallMoleculesLibrary',
                       condition=REINV_INCEPT,
                       label='Inception SMILES file',
                       help='One molecule per line.')
@@ -405,25 +403,6 @@ class ReinventStagedLearning(EMProtocol):
         else:
             return None
 
-    def _extractSmilesToFile(self, molSet, outputFilename):
-        outputPath = self._getPath(outputFilename)
-        with open(outputPath, 'w') as fout:
-            for mol in molSet:
-                molFile = mol.getFileName()
-                if molFile.endswith('.smi'):
-                    with open(molFile, 'r') as fin:
-                        smiles = fin.readline().split()[0]
-                        fout.write(smiles + '\n')
-                elif molFile.endswith('.sdf'):
-                    for rdmol in Chem.SDMolSupplier(molFile):
-                        if rdmol:
-                            fout.write(Chem.MolToSmiles(rdmol) + '\n')
-                elif molFile.endswith('.mol2'):
-                    rdmol = Chem.MolFromMol2File(molFile)
-                    if rdmol:
-                        fout.write(Chem.MolToSmiles(rdmol) + '\n')
-        return outputPath
-
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
         self._insertFunctionStep(self.createConfigFileStep)
@@ -446,7 +425,7 @@ class ReinventStagedLearning(EMProtocol):
 
         molSet = self._getSmilesSet()
         if molSet is not None:
-            rawSmiPath = self._extractSmilesToFile(molSet, 'smiles_raw.smi')
+            rawSmiPath = extract_smiles_to_file(self, molSet, 'smiles_raw.smi')
             newSmilesFile = preprocess_smi_file(self, rawSmiPath, 'smiles_cleaned.smi')
             params['smiles_file'] = newSmilesFile
 
@@ -473,7 +452,7 @@ class ReinventStagedLearning(EMProtocol):
         }
 
         if self.inception.get() is True:
-            inceptionRaw = self._extractSmilesToFile(self.inceptSmi.get(), 'inception_smiles_raw.smi')
+            inceptionRaw = extract_smiles_to_file(self, self.inceptSmi.get(), 'inception_smiles_raw.smi')
             inceptionSmiPath = preprocess_smi_file(self, inceptionRaw, 'inception_smiles.smi')
             configParams['inception'] = {
                 'smiles_file': inceptionSmiPath,

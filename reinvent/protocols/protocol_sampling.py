@@ -42,7 +42,9 @@ from pyworkflow.protocol.params import (PointerParam, IntParam, BooleanParam, En
 from pwchem.objects import SetOfSmallMolecules, SmallMolecule, SmallMoleculesLibrary
 
 from reinvent import Plugin
-from reinvent.utils.smilesUtils import preprocess_smi_file
+from reinvent.utils.smilesUtils import preprocess_smi_file, extract_smiles_to_file, get_input_length
+
+LINK_INVENT = 'molGenerator==2'
 
 class ReinventSampling(EMProtocol):
     """
@@ -96,24 +98,34 @@ class ReinventSampling(EMProtocol):
                       label='Prior model file',
                       help='Path to prior model file. Each generator requires a specific prior.')
 
-        genGroup.addParam('smiFileLib', PathParam,
+        genGroup.addParam('smiFileLib', PointerParam,
+                      pointerClass='SetOfSmallMolecules,SmallMoleculesLibrary',
                       condition='molGenerator==1',
-                      label='Scaffold SMILES file',
-                      help='One scaffold per line. Each scaffold must be annotated by 2 \'*\' to locate the attachment points.\n'
+                      label='Scaffold SMILES set',
+                      help='Set of scaffold molecules; only their SMILES is used, one scaffold per molecule.\n'
+                            'Each scaffold must be annotated by 2 \'*\' to locate the attachment points.\n'
                             'Up to 4 attachments points are allowed.\n'
                             'Example:\n [*:0]Cc2ccc1cncc(C[*:1])c1c2')
 
-        genGroup.addParam('smiFileLink', PathParam,
-                      condition='molGenerator==2',
-                      label='Warheads SMILES file',
-                      help='One warhead pair per line. Each warhead must be annotated with \'*\' to locate the attachment points.'
-                            'The two warheads must be separated by the pipe symbol.\n'
-                            'Example:\n Oc1cncc(*)c1|*c1ccoc1')
+        genGroup.addParam('smiFileLinkA', PointerParam,
+                      pointerClass='SetOfSmallMolecules,SmallMoleculesLibrary',
+                      condition=LINK_INVENT,
+                      label='Warhead set 1',
+                      help='First warhead of each pair. Each warhead must be annotated with \'*\' to locate the attachment point.\n'
+                            'Paired by order with "Warhead set 2" (1st with 1st, 2nd with 2nd...); '
+                            'both sets must have the same number of molecules.')
 
-        genGroup.addParam('smiFileMol', PathParam,
+        genGroup.addParam('smiFileLinkB', PointerParam,
+                      pointerClass='SetOfSmallMolecules,SmallMoleculesLibrary',
+                      condition=LINK_INVENT,
+                      label='Warhead set 2',
+                      help='Second warhead of each pair, paired by order with "Warhead set 1".')
+
+        genGroup.addParam('smiFileMol', PointerParam,
+                      pointerClass='SetOfSmallMolecules,SmallMoleculesLibrary',
                       condition='molGenerator==3',
-                      label='Compound SMILES file',
-                      help='One compound per line.')
+                      label='Compound SMILES set',
+                      help='Set of reference molecules; only their SMILES is used, one compound per molecule.')
 
         genGroup.addParam('sampleStrat', EnumParam, choices=['Beamsearch','Multinomial'],
                       condition='molGenerator==3', expertLevel=LEVEL_ADVANCED,
@@ -139,19 +151,18 @@ class ReinventSampling(EMProtocol):
             priorFile = priorModel[self.molGenerator.get()]
             return Plugin.getPriorPath(priorFile)
 
-    def _getSmilesPath(self):
-        molGenerator = self.molGenerator.get()
+    def _extractPairedSmilesToFile(self, molSetA, molSetB, outputFilename):
+        pathA = extract_smiles_to_file(self, molSetA, 'warheads_A_raw.smi')
+        pathB = extract_smiles_to_file(self, molSetB, 'warheads_B_raw.smi')
 
-        if molGenerator == 1:
-            smilesFile = self.smiFileLib.get()
-        elif molGenerator == 2:
-            smilesFile = self.smiFileLink.get()
-        elif molGenerator == 3:
-            smilesFile = self.smiFileMol.get()
-        else:
-            smilesFile = None
+        outputPath = self._getPath(outputFilename)
+        with open(pathA) as fA, open(pathB) as fB, open(outputPath, 'w') as fout:
+            for lineA, lineB in zip(fA, fB):
+                smiA, smiB = lineA.strip(), lineB.strip()
+                if smiA and smiB:
+                    fout.write(f'{smiA}|{smiB}\n')
 
-        return smilesFile
+        return outputPath
 
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
@@ -167,10 +178,17 @@ class ReinventSampling(EMProtocol):
                 'unique_molecules': self.uniqueMols.get(),
                 'randomize_smiles': self.randomSmi.get()
          }
-        smilesFile = self._getSmilesPath()
-        if smilesFile:
-            newSmilesFile = preprocess_smi_file(self, smilesFile, 'smiles_cleaned.smi')
-            params['smiles_file'] = newSmilesFile
+        molGenerator = self.molGenerator.get()
+        if molGenerator == 1:
+            rawSmilesFile = extract_smiles_to_file(self, self.smiFileLib.get(), 'smiles_raw.smi')
+            params['smiles_file'] = preprocess_smi_file(self, rawSmilesFile, 'smiles_cleaned.smi')
+        elif molGenerator == 2:
+            rawSmilesFile = self._extractPairedSmilesToFile(self.smiFileLinkA.get(), self.smiFileLinkB.get(),
+                                                             'warheads_raw.smi')
+            params['smiles_file'] = preprocess_smi_file(self, rawSmilesFile, 'smiles_cleaned.smi', separator='|')
+        elif molGenerator == 3:
+            rawSmilesFile = extract_smiles_to_file(self, self.smiFileMol.get(), 'smiles_raw.smi')
+            params['smiles_file'] = preprocess_smi_file(self, rawSmilesFile, 'smiles_cleaned.smi')
 
         sampleStrat = self.sampleStrat.get()
 
@@ -209,16 +227,21 @@ class ReinventSampling(EMProtocol):
 
         with open(pathCsv, 'r') as fIn, open(smiOut, 'w') as fOut:
             reader = csv.reader(fIn)
-            headers = next(reader)
-            skipIdx = headers.index('SMILES_state')
+            csvHeaders = next(reader)
+            skipIdx = csvHeaders.index('SMILES_state')
+            # Columns besides SMILES/SMILES_state depend on the generator: Reinvent only adds
+            # NLL, LibInvent/LinkInvent add Scaffold|Warheads + R-groups|Linker + NLL, Mol2Mol
+            # adds Input_SMILES + Tanimoto + NLL. Keep whatever REINVENT reports instead of
+            # assuming a fixed column count.
+            extraHeaders = [h for j, h in enumerate(csvHeaders) if j not in (0, skipIdx)]
 
             for i, row in enumerate(reader):
                 if row and row[0].strip():
                     filteredRow = [v for j, v in enumerate(row) if j != skipIdx]
                     name = f'MOL_{str(i + 1).zfill(3)}'
-                    fOut.write(f'{filteredRow[0]}\t{name}\t{filteredRow[1]}\n')
+                    fOut.write('\t'.join([filteredRow[0], name] + filteredRow[1:]) + '\n')
 
-        headers = ['SMI', 'molName', 'NLL']
+        headers = ['SMI', 'molName'] + extraHeaders
 
         outputLib = SmallMoleculesLibrary(libraryFilename=smiOut, headers=headers)
         outputLib.calculateLength()
@@ -232,12 +255,19 @@ class ReinventSampling(EMProtocol):
         if self.numMols.get() <= 0:
             errors.append("Number of molecules to generate must be greater than 0.")
 
-        if self.molGenerator.get() != 0:
-            smilesPath = self._getSmilesPath()
-            if not smilesPath:
-                errors.append("SMILES file must not be empty.")
-            elif not os.path.isfile(smilesPath):
-                errors.append(f"SMILES file is not a valid path: {smilesPath}")
+        molGenerator = self.molGenerator.get()
+        if molGenerator == 1 and self.smiFileLib.get() is None:
+            errors.append("Scaffold SMILES set must be added.")
+
+        elif molGenerator == 2:
+            setA, setB = self.smiFileLinkA.get(), self.smiFileLinkB.get()
+            if setA is None or setB is None:
+                errors.append("Both warhead sets must be added.")
+            elif get_input_length(setA) != get_input_length(setB):
+                errors.append("Warhead set 1 and Warhead set 2 must have the same number of molecules.")
+
+        elif molGenerator == 3 and self.smiFileMol.get() is None:
+            errors.append("Compound SMILES set must be added.")
 
         return errors
 

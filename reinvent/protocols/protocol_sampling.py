@@ -56,22 +56,21 @@ class ReinventSampling(EMProtocol):
         """
         form.addSection(label='Run Parameters')
 
-        RunGroup = form.addGroup('Run Parameters')
-        RunGroup.addParam('NumMols', IntParam, default=100,
+        runGroup = form.addGroup('Run Parameters')
+        runGroup.addParam('numMols', IntParam, default=100,
                       label='Number of output molecules',
                       help='Number of molecules to generate. This number is multiplied per input SMILES.')
-        
-        RunGroup.addParam('UniqueMols', BooleanParam, default=True,
+
+        runGroup.addParam('uniqueMols', BooleanParam, default=True,
                       label='Remove duplicated SMILES?',
                       help='If TRUE returns unique canonicalized SMILES.')
 
-        RunGroup.addParam('RandomSmi', BooleanParam, default=True,
+        runGroup.addParam('randomSmi', BooleanParam, default=True,
                       label='Shuffle atoms randomly?',
                       help='If TRUE shuffle atoms in SMILES randomly.')
 
-        GenGroup = form.addGroup('Molecule Generator')
-        GenGroup.addParam('MolGenerator', EnumParam, choices=['Reinvent'], #'LibInvent',
-                                                          #'LinkInvent', 'Mol2Mol'],
+        genGroup = form.addGroup('Molecule Generator')
+        genGroup.addParam('molGenerator', EnumParam, choices=['Reinvent'], #, 'LibInvent', 'LinkInvent', 'Mol2Mol'],
                       default=0,
                       label='Type of Molecule Generator',
                       help='Generative strategy to be used. Each generator requires a specific prior and input data.\n'
@@ -80,148 +79,148 @@ class ReinventSampling(EMProtocol):
                             '- LinkInvent: Find a scaffold to link two fragments.\n'
                             '- Mol2Mol: Find molecules similar to provided SMILES.')
 
-        GenGroup.addParam('ExtPrior', BooleanParam, default='False', expertLevel=LEVEL_ADVANCED,
+        genGroup.addParam('extPrior', BooleanParam, default=False, expertLevel=LEVEL_ADVANCED,
                       label='Upload external prior file?',
                       help='Set to True to select a custom prior model.')
 
-        GenGroup.addParam('PriorModel', PointerParam,
+        genGroup.addParam('priorModel', PointerParam,
                       pointerClass='ReinventModel',
-                      condition='ExtPrior==False',
+                      condition='extPrior==False',
                       allowsNull=True,
                       label='Prior model file',
                       help='Select a trained model. A Learning protocol should be run first.\n'
                             ' If left empty, the default prior for the selected generator will be used.')
 
-        GenGroup.addParam('ExtPriorModel', PathParam,
-                      condition='ExtPrior==True',
+        genGroup.addParam('extPriorModel', PathParam,
+                      condition='extPrior==True',
                       label='Prior model file',
                       help='Path to prior model file. Each generator requires a specific prior.')
-        
-        GenGroup.addParam('SmiFileLib', PathParam,
-                      condition='MolGenerator==1',
+
+        genGroup.addParam('smiFileLib', PathParam,
+                      condition='molGenerator==1',
                       label='Scaffold SMILES file',
                       help='One scaffold per line. Each scaffold must be annotated by 2 \'*\' to locate the attachment points.\n'
                             'Up to 4 attachments points are allowed.\n'
                             'Example:\n [*:0]Cc2ccc1cncc(C[*:1])c1c2')
 
-        GenGroup.addParam('SmiFileLink', PathParam,
-                      condition='MolGenerator==2',
+        genGroup.addParam('smiFileLink', PathParam,
+                      condition='molGenerator==2',
                       label='Warheads SMILES file',
                       help='One warhead pair per line. Each warhead must be annotated with \'*\' to locate the attachment points.'
                             'The two warheads must be separated by the pipe symbol.\n'
                             'Example:\n Oc1cncc(*)c1|*c1ccoc1')
-        
-        GenGroup.addParam('SmiFileMol', PathParam,
-                      condition='MolGenerator==3',
+
+        genGroup.addParam('smiFileMol', PathParam,
+                      condition='molGenerator==3',
                       label='Compound SMILES file',
                       help='One compound per line.')
 
-        GenGroup.addParam('SampleStrat', EnumParam, choices=['Beamsearch','Multinomial'],
-                      condition='MolGenerator==3', expertLevel=LEVEL_ADVANCED,
+        genGroup.addParam('sampleStrat', EnumParam, choices=['Beamsearch','Multinomial'],
+                      condition='molGenerator==3', expertLevel=LEVEL_ADVANCED,
                       default=0,
                       label='Sampling Strategy',
                       help='Multinomial: Fast random generation based on token probability distribution.\n'
                             'Beamsearch: Deterministic approach that ensures unique compounds '
                             'by selecting the highest probability sequences.(Recommended for sampling).')
 
-        GenGroup.addParam('Temperature', FloatParam, default=1.0,
-                      condition='MolGenerator==3 and SampleStrat==1', expertLevel=LEVEL_ADVANCED,
+        genGroup.addParam('temperature', FloatParam, default=1.0,
+                      condition='molGenerator==3 and sampleStrat==1', expertLevel=LEVEL_ADVANCED,
                       label='Temperature in Multinomial sampling',
                       help='Controls randomness. Lower values for more predictable molecules and higher values for more diverse structures.')
 
     # -------------------------- OTHER functions ----------------------
     def _getPriorFile(self):
-        if self.ExtPrior.get() is True:
-            return self.ExtPriorModel.get()
-        if self.PriorModel.get() is not None:
-            return self.PriorModel.get().getPath()
+        if self.extPrior.get() is True:
+            return self.extPriorModel.get()
+        if self.priorModel.get() is not None:
+            return self.priorModel.get().getPath()
         else:
             priorModel = ['reinvent.prior', 'libinvent.prior', 'linkinvent.prior', 'mol2mol_scaffold_generic.prior']
-            priorFile = priorModel[self.MolGenerator.get()]
+            priorFile = priorModel[self.molGenerator.get()]
             return Plugin.getPriorPath(priorFile)
 
     def _getSmilesPath(self):
-        MolGenerator = self.MolGenerator.get()
+        molGenerator = self.molGenerator.get()
 
-        if MolGenerator == 1:
-            smiles_file = self.SmiFileLib.get()
-        elif MolGenerator == 2:
-            smiles_file = self.SmiFileLink.get()
-        elif MolGenerator == 3:
-            smiles_file = self.SmiFileMol.get()
+        if molGenerator == 1:
+            smilesFile = self.smiFileLib.get()
+        elif molGenerator == 2:
+            smilesFile = self.smiFileLink.get()
+        elif molGenerator == 3:
+            smilesFile = self.smiFileMol.get()
         else:
-            smiles_file = None
+            smilesFile = None
 
-        return smiles_file
+        return smilesFile
 
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
-        self._insertFunctionStep('createConfigFileStep')
-        self._insertFunctionStep('runReinventStep')
-        self._insertFunctionStep('createOutputStep')
+        self._insertFunctionStep(self.createConfigFileStep)
+        self._insertFunctionStep(self.runReinventStep)
+        self._insertFunctionStep(self.createOutputStep)
 
     def createConfigFileStep(self):
-        params = {  
+        params = {
                 'model_file': self._getPriorFile(),
-                'output_file': self.getPath('sampling.csv'),
-                'num_smiles': self.NumMols.get(),
-                'unique_molecules': self.UniqueMols.get(),
-                'randomize_smiles': self.RandomSmi.get()
+                'output_file': self._getPath('sampling.csv'),
+                'num_smiles': self.numMols.get(),
+                'unique_molecules': self.uniqueMols.get(),
+                'randomize_smiles': self.randomSmi.get()
          }
-        smiles_file = self._getSmilesPath()
-        if smiles_file:
-            new_smiles_file = preprocess_smi_file(self,smiles_file,'smiles_cleaned.smi')
-            params['smiles_file'] = new_smiles_file
+        smilesFile = self._getSmilesPath()
+        if smilesFile:
+            newSmilesFile = preprocess_smi_file(self, smilesFile, 'smiles_cleaned.smi')
+            params['smiles_file'] = newSmilesFile
 
-        SampleStrat = self.SampleStrat.get()
+        sampleStrat = self.sampleStrat.get()
 
-        if self.MolGenerator.get() == 3:
-            if SampleStrat == 0:
+        if self.molGenerator.get() == 3:
+            if sampleStrat == 0:
                 params['sample_strategy'] = 'beamsearch'
-            if SampleStrat == 1:
+            if sampleStrat == 1:
                 params['sample_strategy'] = 'multinomial'
-                params['temperature'] = self.Temperature.get()
+                params['temperature'] = self.temperature.get()
 
-        config_params = {
+        configParams = {
                 'run_type': 'sampling',
                 'device': 'cpu',
                 'tb_logdir': os.path.join(self._getExtraPath(), 'TB_logs'),
-                'json_out_config':self._getTmpPath('_sampling.json'),
+                'json_out_config': self._getTmpPath('_sampling.json'),
 
                 'parameters': params
         }
 
         self.configPath = self._getPath('sampling_config.toml')
         with open(self.configPath, 'w') as f:
-            toml.dump(config_params, f)
+            toml.dump(configParams, f)
 
     def runReinventStep(self):
-        CondaInit = Plugin.getCondaActivationCmd()
-        EnvActivation = Plugin.getEnvActivation()
-        Executable = Plugin.getProgram()
-        
-        parts=[CondaInit, f'{EnvActivation} &&', Executable]
-        full_command =" ".join(parts)
-        self.runJob(full_command, self.configPath, env=Plugin.getEnviron())
+        condaInit = Plugin.getCondaActivationCmd()
+        envActivation = Plugin.getEnvActivation()
+        executable = Plugin.getProgram()
+
+        parts = [condaInit, f'{envActivation} &&', executable]
+        fullCommand = " ".join(parts)
+        self.runJob(fullCommand, self.configPath, env=Plugin.getEnviron())
 
     def createOutputStep(self):
-        path_csv = self._getPath('sampling.csv')
-        smi_out = self._getPath('sampling.smi')
+        pathCsv = self._getPath('sampling.csv')
+        smiOut = self._getPath('sampling.smi')
 
-        with open(path_csv, 'r') as f_in, open(smi_out, 'w') as f_out:
-            reader = csv.reader(f_in)
+        with open(pathCsv, 'r') as fIn, open(smiOut, 'w') as fOut:
+            reader = csv.reader(fIn)
             headers = next(reader)
-            skip_idx = headers.index('SMILES_state')
+            skipIdx = headers.index('SMILES_state')
 
             for i, row in enumerate(reader):
                 if row and row[0].strip():
-                    filtered_row = [v for j, v in enumerate(row) if j != skip_idx]
+                    filteredRow = [v for j, v in enumerate(row) if j != skipIdx]
                     name = f'MOL_{str(i + 1).zfill(3)}'
-                    f_out.write(f'{filtered_row[0]}\t{name}\t{filtered_row[1]}\n')
+                    fOut.write(f'{filteredRow[0]}\t{name}\t{filteredRow[1]}\n')
 
         headers = ['SMI', 'molName', 'NLL']
 
-        outputLib = SmallMoleculesLibrary(libraryFilename=smi_out, headers=headers)
+        outputLib = SmallMoleculesLibrary(libraryFilename=smiOut, headers=headers)
         outputLib.calculateLength()
         self._defineOutputs(outputLibrary=outputLib)
 
@@ -230,15 +229,15 @@ class ReinventSampling(EMProtocol):
     def _validate(self):
         errors = []
 
-        if self.NumMols.get() <= 0:
+        if self.numMols.get() <= 0:
             errors.append("Number of molecules to generate must be greater than 0.")
 
-        if self.MolGenerator.get() != 0:
-            smiles_path = self._getSmilesPath()
-            if not smiles_path:
+        if self.molGenerator.get() != 0:
+            smilesPath = self._getSmilesPath()
+            if not smilesPath:
                 errors.append("SMILES file must not be empty.")
-            elif not os.path.isfile(smiles_path):
-                errors.append(f"SMILES file is not a valid path: {smiles_path}")
+            elif not os.path.isfile(smilesPath):
+                errors.append(f"SMILES file is not a valid path: {smilesPath}")
 
         return errors
 
@@ -246,7 +245,7 @@ class ReinventSampling(EMProtocol):
     def _summary(self):
         """ Summarize what the protocol has done"""
         summary = []
-        summary.append(f"Generator type: {self.getEnumText('MolGenerator')}")
-        summary.append(f"Molecules generated: {self.NumMols.get()} (per input SMILES)")
+        summary.append(f"Generator type: {self.getEnumText('molGenerator')}")
+        summary.append(f"Molecules generated: {self.numMols.get()} (per input SMILES)")
 
         return summary

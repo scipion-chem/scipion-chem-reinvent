@@ -27,10 +27,10 @@
 V1 = "1.0"
 REINVENT_DEF_VER = V1
 
+# Tool description dictionary (scipion-chem convention: {name, version, home})
+REINVENT_DIC = {'name': 'reinvent', 'version': V1, 'home': 'REINVENT_HOME'}
+
 REINVENT_BINARY = "REINVENT_BINARY"
-REINVENT_HOME = "REINVENT_HOME"
-REINVENT_ENV_ACT = "REINVENT_ENV_ACT"
+REINVENT_HOME = REINVENT_DIC['home']
 
-
-def getReinventEnvName(version):
-    return f"reinvent-{version}"
+REINVENT_TAG = "v4.8"

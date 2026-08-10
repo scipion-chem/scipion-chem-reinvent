@@ -42,12 +42,3 @@ class ReinventModel(EMObject):
 
     def __str__(self):
         return "ReinventModel(path=%s)" % self.getPath()
-
-class ReinventToml(EMObject):
-    """Class to store the REINVENT configuration TOML path."""
-    def __init__(self, path=None, **kwargs):
-        EMObject.__init__(self, **kwargs)
-        self._path = pwobj.String(path)
-
-    def getPath(self):
-        return self._path.get()

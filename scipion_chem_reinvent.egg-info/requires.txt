@@ -1,5 +1,0 @@
-scipion-pyworkflow
-scipion-em
-scipion-chem
-toml
-rdkit

@@ -26,90 +26,72 @@
 
 import os
 import pyworkflow.utils as pwutils
-import pwem
+import pwchem
+
+from scipion.install.funcs import InstallHelper
 
 from reinvent.constants import *
 
 __version__ = "1.0"  # plugin version
 _logo = "icon.png"
-_references = ['you2019']
+_references = ['Loeffler2024']
 
 
-class Plugin(pwem.Plugin):
+class Plugin(pwchem.Plugin):
     _homeVar = REINVENT_HOME
     _pathVars = [REINVENT_HOME]
     _url = "https://github.com/MolecularAI/REINVENT4"
-    _supportedVersions = [V1]  # binary version
+    _supportedVersions = [V1]
 
     @classmethod
     def _defineVariables(cls):
-        ENV_NAME = getReinventEnvName(V1)
         cls._defineVar(REINVENT_BINARY, "reinvent")
-        cls._defineEmVar(REINVENT_HOME, ENV_NAME)
-        cls._defineVar(REINVENT_ENV_ACT, f"conda activate {ENV_NAME}")
+        cls._defineEmVar(REINVENT_DIC['home'], cls.getEnvName(REINVENT_DIC))
 
     @classmethod
     def getEnviron(cls):
         """ Setup the environment variables needed to launch my program. """
         environ = pwutils.Environ(os.environ)
-
-        # ...
-
         return environ
 
     @classmethod
-    def getDependencies(cls):
-        """ Return a list of dependencies. """
-        condaActivationCmd = cls.getCondaActivationCmd()
-        neededProgs = []
-        if not condaActivationCmd:
-            neededProgs.append('conda')
-        return neededProgs
+    def getPluginHome(cls, path=""):
+        """ Return a path inside this plugin's source directory. """
+        import reinvent
+        return os.path.join(os.path.split(reinvent.__file__)[0], path)
 
     @classmethod
     def defineBinaries(cls, env):
-        for version in [V1]:
-            cls.addReinventPackage(env, version,
-                                   default=(version==REINVENT_DEF_VER))
-
+        cls.addReinventPackage(env, default=True)
 
     @classmethod
-    def addReinventPackage(cls, env, version, default=False):
-        ENV_NAME = getReinventEnvName(version)
+    def addReinventPackage(cls, env, default=True):
+        # Instantiating install helper
+        installer = InstallHelper(REINVENT_DIC['name'], packageHome=cls.getVar(REINVENT_DIC['home']),
+                                  packageVersion=REINVENT_DIC['version'])
 
-        REINVENT_INSTALLED = 'reinvent_installed'
-        PRIORS_INSTALLED = 'priors_installed'
+        # Path to the priors download script shipped with the plugin
+        priorsScript = cls.getPluginHome('priors.py')
 
-        installCmd = [cls.getCondaActivationCmd(),
-                      f'conda create -y -n {ENV_NAME} python=3.10 &&',
-                      f'conda activate {ENV_NAME} &&',
-                      ' git clone https://github.com/MolecularAI/REINVENT4.git --depth 1 . &&',
-                      ' python install.py cpu &&',
-                      ' pip install rdkit toml',
-                      f'&& touch {REINVENT_INSTALLED}'
-                      ]
+        # REINVENT4 source directory (the release archive is extracted and renamed to it)
+        repoPath = os.path.join(cls.getVar(REINVENT_DIC['home']), 'REINVENT4')
 
-        scriptPath = os.path.join(os.path.dirname(__file__), 'priors.py')
-        installPriors = [cls.getCondaActivationCmd(),
-                         f'conda activate {ENV_NAME} &&',
-                         f'python3 {scriptPath} &&',
-                         f'touch {PRIORS_INSTALLED}'
-                        ]
+        # Installing package
+        installer.addCommand(f'wget {cls.getReinventUrl()} -O reinvent4.zip && '
+                             f'unzip reinvent4.zip && '
+                             f'mv REINVENT4-*/ REINVENT4 && '
+                             f'rm reinvent4.zip', 'REINVENT_DOWNLOADED')\
+            .getCondaEnvCommand(binaryName=REINVENT_DIC['name'], binaryVersion=REINVENT_DIC['version'],
+                                pythonVersion='3.11', binaryPath=repoPath,
+                                extraCommands=['python install.py cpu', 'pip install rdkit toml'],
+                                targetName='REINVENT_INSTALLED')\
+            .addCommand(f'{cls.getEnvActivationCommand(REINVENT_DIC)} && python3 {priorsScript}',
+                        'PRIORS_DOWNLOADED')\
+            .addPackage(env, dependencies=['wget', 'unzip', 'conda'], default=default)
 
-        reinventCommands = [
-            (" ".join(installCmd), REINVENT_INSTALLED),
-            (" ".join(installPriors), PRIORS_INSTALLED)
-        ]
-
-        envPath = os.environ.get('PATH', "")
-        installEnvVars = {'PATH': envPath} if envPath else None
-        
-        env.addPackage('reinvent', version=version,
-                       tar='void.tgz',
-                       commands=reinventCommands,
-                       neededProgs=cls.getDependencies(),
-                       default=default,
-                       vars=installEnvVars)
+    @classmethod
+    def getReinventUrl(cls):
+        return f'{cls._url}/archive/refs/tags/{REINVENT_TAG}.zip'
 
     @classmethod
     def getProgram(cls, program=None):
@@ -117,7 +99,7 @@ class Plugin(pwem.Plugin):
 
     @classmethod
     def getEnvActivation(cls):
-        return cls.getVar(REINVENT_ENV_ACT)
+        return cls.getEnvActivationCommand(REINVENT_DIC, condaHook=False)
 
     @classmethod
     def getSoftwarePath(cls):
@@ -125,4 +107,4 @@ class Plugin(pwem.Plugin):
 
     @classmethod
     def getPriorPath(cls, *args):
-        return os.path.join(cls.getSoftwarePath(),'priors',*args)
+        return os.path.join(cls.getSoftwarePath(), 'priors', *args)
